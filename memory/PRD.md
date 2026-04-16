@@ -1,38 +1,35 @@
 # Vibecon Designfolio - PRD
 
-## Original Problem Statement
-1. Pull code from connected Git repository and run frontend locally
-2. Wire up resume-to-portfolio builder: PDF upload → Gemini parsing → IndexedDB → Builder population
-3. Build /jobs page with Kanban board: AI Picks, Shortlisted, Applied, Interview, Offer
-
 ## Architecture
-- **Stack**: Vite 7.3 + React 19 + TypeScript + Tailwind CSS v4 + Wouter routing
-- **Data Layer**: IndexedDB (`portfolioBuilder` / `resumeData`, version 2)
-- **AI**: Gemini 2.5 Flash (resume parsing + job matching)
-- **PDF**: pdfjs-dist (client-side)
-- **DnD**: @dnd-kit (existing kanban.tsx component)
-- **No backend**
+- **Stack**: Vite 7.3 + React 19 + TypeScript + Tailwind CSS v4 + Wouter + @dnd-kit
+- **Data**: IndexedDB (`portfolioBuilder` v2, stores: `resumeData`, `jobPreferences`, `jobsData`)
+- **APIs**: Gemini 2.5 Flash (resume parsing + job ranking), JSearch/RapidAPI (real job listings), Nominatim (location autocomplete)
+- **Keys**: `.env.local` (gitignored) — `VITE_GEMINI_API_KEY`, `VITE_RAPIDAPI_KEY`
 
-## What's Been Implemented
+## Implemented Features
 
-### Resume-to-Portfolio Builder
-- PDF upload → PDF.js text extraction → Gemini parsing → IndexedDB → /builder
-- ResumeContext for shared state, re-upload warning modal, error handling
-- Builder dynamically populates: hero name/title, about, experience, projects (2), tools, recommendations (hidden if empty), contact/social links (hidden if null)
+### 1. Resume-to-Portfolio Builder (/)→(/builder)
+- PDF upload → PDF.js extraction → Gemini parsing → IndexedDB → /builder
+- Dynamic hero, about, experience, projects (2), tools, recommendations, contact/social links
+- Re-upload warning modal, error states, fallbacks
 
-### Jobs Kanban Board (/jobs)
-- 5 drag-and-drop columns: AI Picks, Shortlisted, Applied, Interview, Offer
-- Gemini generates AI-matched job picks from resume data
-- Job cards show: title, company, location, salary, match score, tags, posted date
-- Drag jobs between columns, persisted in IndexedDB
-- Floating nav with Builder + Jobs links
-- Error handling for API failures
+### 2. Jobs Onboarding Stepper (/jobs gate)
+- Screen 0: Intro ("1,200+ jobs found")
+- Screen 1: Experience level (4 cards → API param mapping)
+- Screen 2: Location (3 options + Nominatim autocomplete, pre-fills from resume)
+- Screen 3: Target role (free text + 6 quick-select chips)
+- On submit: prefs → IndexedDB, JSearch 3 pages in parallel, Gemini ranking
 
-## Files Created/Modified
-- `client/src/lib/types.ts`, `indexeddb.ts`, `pdf.ts`, `gemini.ts`
-- `client/src/lib/job-types.ts`, `jobs-db.ts`, `gemini-jobs.ts`
-- `client/src/context/ResumeContext.tsx`
-- `client/src/pages/jobs.tsx` (NEW)
-- Modified: `App.tsx`, `landing.tsx`, `home.tsx`, `project.tsx`, `floating-nav.tsx`
+### 3. Jobs Kanban Board (/jobs)
+- 5 columns: AI Picks, Shortlisted, Applied, Interview, Offer
+- Real JSearch job cards with title, company, location, salary, match score, apply link
+- Drag-and-drop between columns, persisted to IndexedDB
+- "Search again" clears prefs and restarts stepper
+- Floating nav (Builder + Jobs)
 
-## Testing: 95% pass rate (13/14)
+## Files
+- `lib/`: types.ts, indexeddb.ts, pdf.ts, gemini.ts, gemini-jobs.ts, job-types.ts, jobs-db.ts, job-preferences-db.ts, jsearch.ts
+- `context/`: ResumeContext.tsx
+- `components/`: jobs-stepper.tsx
+- `pages/`: landing.tsx, home.tsx, project.tsx, jobs.tsx
+- `client/.env.local` (gitignored), `client/.env.example`
