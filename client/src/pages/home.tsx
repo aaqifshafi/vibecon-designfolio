@@ -84,7 +84,7 @@ import { SmoothCursor } from "@/components/ui/smooth-cursor";
 import { TextGradientScroll } from "@/components/ui/text-gradient-scroll";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import profileImg from "@assets/image_1772896095217.png";
+import profileImg from "/previewproject/avatar.png";
 import project1 from "@/assets/images/project1.png";
 import project2 from "@/assets/images/project2.png";
 import project3 from "@/assets/images/project3.png";
