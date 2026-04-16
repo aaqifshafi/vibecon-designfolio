@@ -36,6 +36,7 @@ export default defineConfig({
       "@dnd-kit/utilities",
       "@tanstack/react-query",
       "class-variance-authority",
+      "@anam-ai/js-sdk",
     ],
   },
   resolve: {

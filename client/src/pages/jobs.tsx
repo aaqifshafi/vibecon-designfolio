@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   RotateCcw,
   ExternalLink,
+  Video,
 } from "lucide-react";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { useResume } from "@/context/ResumeContext";
@@ -39,6 +40,7 @@ import type { JobPreferences } from "@/lib/job-preferences-db";
 import type { JobItem, JobColumns, JobColumn } from "@/lib/job-types";
 import { COLUMN_LABELS, COLUMN_ORDER, EMPTY_COLUMNS } from "@/lib/job-types";
 import JobsStepper from "@/components/jobs-stepper";
+import InterviewModal from "@/components/interview-modal";
 
 const COLUMN_ICONS: Record<JobColumn, typeof Sparkles> = {
   "ai-picks": Sparkles,
@@ -64,7 +66,7 @@ const COLUMN_DOT_COLORS: Record<JobColumn, string> = {
   offer: "bg-rose-500",
 };
 
-function JobCard({ job }: { job: JobItem }) {
+function JobCard({ job, columnId, onStartInterview }: { job: JobItem; columnId?: string; onStartInterview?: (job: JobItem) => void }) {
   return (
     <div
       data-testid={`job-card-${job.id}`}
@@ -147,6 +149,18 @@ function JobCard({ job }: { job: JobItem }) {
           </span>
         </div>
       )}
+
+      {columnId === "interview" && onStartInterview && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onStartInterview(job); }}
+          data-testid={`mock-interview-${job.id}`}
+          className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A] text-[12px] font-semibold hover:opacity-90 transition-opacity"
+        >
+          <Video className="w-3.5 h-3.5" />
+          Take Mock Interview
+        </button>
+      )}
     </div>
   );
 }
@@ -161,6 +175,7 @@ export default function Jobs() {
   const [fetchStatus, setFetchStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [defaultLocation, setDefaultLocation] = useState("");
+  const [interviewJob, setInterviewJob] = useState<JobItem | null>(null);
 
   // Hydrate resume + check preferences
   useEffect(() => {
@@ -393,7 +408,7 @@ export default function Jobs() {
                   >
                     {items.map((job) => (
                       <KanbanItem key={job.id} value={job.id}>
-                        <JobCard job={job} />
+                        <JobCard job={job} columnId={colId} onStartInterview={setInterviewJob} />
                       </KanbanItem>
                     ))}
 
@@ -424,6 +439,16 @@ export default function Jobs() {
           </KanbanOverlay>
         </Kanban>
       </div>
+
+      {/* Interview Modal */}
+      <AnimatePresence>
+        {interviewJob && (
+          <InterviewModal
+            job={interviewJob}
+            onClose={() => setInterviewJob(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
