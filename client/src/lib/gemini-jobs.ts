@@ -78,3 +78,57 @@ Generate diverse jobs: mix of senior/lead roles, different company sizes, some r
     url: j.url || undefined,
   }));
 }
+
+
+export async function rankJobsWithGemini(
+  jobs: JobItem[],
+  resume: ParsedResume
+): Promise<JobItem[]> {
+  if (jobs.length === 0) return jobs;
+
+  const skills = resume.tools?.map((t) => t.name).join(", ") || "";
+  const experienceSummary = resume.experience
+    ?.slice(0, 3)
+    .map((e) => `${e.role} at ${e.company}`)
+    .join("; ") || "";
+
+  const jobSummaries = jobs.slice(0, 30).map((j, i) => `[${i}] "${j.title}" at ${j.company} — ${j.description.slice(0, 100)}`).join("\n");
+
+  const prompt = `You are a job matching engine. Score how well each job matches this candidate's profile. Return ONLY a JSON array of objects with { index: number, score: number } where score is 50-98. No markdown, no explanation.
+
+Candidate:
+- Title: ${resume.title}
+- Skills: ${skills}
+- Experience: ${experienceSummary}
+
+Jobs:
+${jobSummaries}`;
+
+  try {
+    const response = await fetch(GEMINI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+      }),
+    });
+
+    if (!response.ok) throw new Error("Gemini ranking failed");
+
+    const data = await response.json();
+    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const cleaned = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    const scores: { index: number; score: number }[] = JSON.parse(cleaned);
+
+    const scored = jobs.map((job, i) => {
+      const match = scores.find((s) => s.index === i);
+      return { ...job, matchScore: match ? Math.min(98, Math.max(50, match.score)) : 75 };
+    });
+
+    return scored.sort((a, b) => b.matchScore - a.matchScore);
+  } catch {
+    // If Gemini fails, return jobs with default scores
+    return jobs.map((j) => ({ ...j, matchScore: 75 }));
+  }
+}

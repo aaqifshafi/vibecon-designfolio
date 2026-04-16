@@ -25,14 +25,20 @@ import {
   RefreshCw,
   Briefcase,
   ArrowLeft,
+  RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { useResume } from "@/context/ResumeContext";
 import { getResumeData } from "@/lib/indexeddb";
 import { getJobsData, setJobsData } from "@/lib/jobs-db";
-import { generateJobMatches } from "@/lib/gemini-jobs";
+import { rankJobsWithGemini } from "@/lib/gemini-jobs";
+import { fetchJSearchJobs } from "@/lib/jsearch";
+import { getJobPreferences, setJobPreferences, clearJobPreferences } from "@/lib/job-preferences-db";
+import type { JobPreferences } from "@/lib/job-preferences-db";
 import type { JobItem, JobColumns, JobColumn } from "@/lib/job-types";
 import { COLUMN_LABELS, COLUMN_ORDER, EMPTY_COLUMNS } from "@/lib/job-types";
+import JobsStepper from "@/components/jobs-stepper";
 
 const COLUMN_ICONS: Record<JobColumn, typeof Sparkles> = {
   "ai-picks": Sparkles,
@@ -58,7 +64,7 @@ const COLUMN_DOT_COLORS: Record<JobColumn, string> = {
   offer: "bg-rose-500",
 };
 
-function JobCard({ job, columnId }: { job: JobItem; columnId: string }) {
+function JobCard({ job }: { job: JobItem }) {
   return (
     <div
       data-testid={`job-card-${job.id}`}
@@ -107,17 +113,30 @@ function JobCard({ job, columnId }: { job: JobItem; columnId: string }) {
             </span>
           ))}
         </div>
-        <div
-          className={cn(
-            "text-[11px] font-bold px-2 py-0.5 rounded-full",
-            job.matchScore >= 90
-              ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-              : job.matchScore >= 80
-                ? "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400"
-                : "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400"
+        <div className="flex items-center gap-2">
+          {job.url && (
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-[#7A736C] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
           )}
-        >
-          {job.matchScore}%
+          <div
+            className={cn(
+              "text-[11px] font-bold px-2 py-0.5 rounded-full",
+              job.matchScore >= 90
+                ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                : job.matchScore >= 80
+                  ? "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400"
+                  : "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400"
+            )}
+          >
+            {job.matchScore}%
+          </div>
         </div>
       </div>
 
@@ -126,86 +145,142 @@ function JobCard({ job, columnId }: { job: JobItem; columnId: string }) {
           <span className="text-[12px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7]">
             {job.salary}
           </span>
-          <span className="text-[11px] text-[#7A736C] dark:text-[#9E9893] ml-1">
-            / year
-          </span>
         </div>
       )}
     </div>
   );
 }
 
+type Phase = "loading" | "stepper" | "fetching" | "kanban";
+
 export default function Jobs() {
   const [, navigate] = useLocation();
   const { resume, setResume } = useResume();
   const [columns, setColumns] = useState<JobColumns>(EMPTY_COLUMNS);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [fetchStatus, setFetchStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [defaultLocation, setDefaultLocation] = useState("");
 
-  // Hydrate resume and jobs from IndexedDB
+  // Hydrate resume + check preferences
   useEffect(() => {
     (async () => {
       try {
         const resumeData = await getResumeData();
-        if (!resumeData) {
-          navigate("/", { replace: true });
-          return;
-        }
+        if (!resumeData) { navigate("/", { replace: true }); return; }
         if (!resume) setResume(resumeData);
+        setDefaultLocation(resumeData.location || "");
 
-        const savedJobs = await getJobsData();
-        if (savedJobs) {
-          setColumns(savedJobs);
+        const prefs = await getJobPreferences();
+        if (prefs) {
+          // Already completed stepper — load Kanban
+          const savedJobs = await getJobsData();
+          if (savedJobs) setColumns(savedJobs);
+          setPhase("kanban");
+        } else {
+          setPhase("stepper");
         }
-        setIsInitialized(true);
       } catch {
         navigate("/", { replace: true });
       }
     })();
   }, []);
 
-  // Persist columns to IndexedDB on change
+  // Persist columns to IndexedDB
   useEffect(() => {
-    if (isInitialized) {
-      setJobsData(columns);
-    }
-  }, [columns, isInitialized]);
+    if (phase === "kanban") setJobsData(columns);
+  }, [columns, phase]);
 
-  const fetchAIJobs = useCallback(async () => {
-    if (!resume) return;
-    setIsLoading(true);
+  // Run job fetch + Gemini ranking after stepper completes
+  const runJobPipeline = useCallback(async (prefs: JobPreferences) => {
+    setPhase("fetching");
     setError(null);
+
     try {
-      const jobs = await generateJobMatches(resume);
-      setColumns((prev) => ({ ...prev, "ai-picks": jobs }));
+      // Step 1: Save preferences
+      await setJobPreferences(prefs);
+
+      // Step 2: Fetch from JSearch
+      setFetchStatus("Searching for jobs...");
+      const rawJobs = await fetchJSearchJobs(prefs);
+
+      if (rawJobs.length === 0) {
+        setColumns({ ...EMPTY_COLUMNS });
+        setPhase("kanban");
+        return;
+      }
+
+      // Step 3: Rank with Gemini
+      setFetchStatus("Ranking with AI...");
+      const resumeData = resume || (await getResumeData());
+      let rankedJobs = rawJobs;
+      if (resumeData) {
+        rankedJobs = await rankJobsWithGemini(rawJobs, resumeData);
+      }
+
+      setColumns({ ...EMPTY_COLUMNS, "ai-picks": rankedJobs });
+      setPhase("kanban");
     } catch (err: any) {
-      setError("Couldn't fetch job matches. Please try again.");
-    } finally {
-      setIsLoading(false);
+      setError("Something went wrong fetching jobs. Please try again.");
+      setPhase("kanban");
     }
   }, [resume]);
 
-  // Auto-fetch AI picks on first load if empty
-  useEffect(() => {
-    if (isInitialized && resume && columns["ai-picks"].length === 0) {
-      fetchAIJobs();
-    }
-  }, [isInitialized, resume]);
+  const handleSearchAgain = async () => {
+    await clearJobPreferences();
+    setColumns(EMPTY_COLUMNS);
+    setError(null);
+    setPhase("stepper");
+  };
 
   const totalJobs = Object.values(columns).reduce((sum, col) => sum + col.length, 0);
 
-  if (!isInitialized) {
+  // Loading
+  if (phase === "loading") {
     return (
       <div className="min-h-screen bg-[#F0EDE7] dark:bg-[#1A1A1A] flex items-center justify-center">
         <div className="flex items-center gap-3 text-[#7A736C] dark:text-[#9E9893]">
           <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-[14px] font-medium">Loading jobs...</span>
+          <span className="text-[14px] font-medium">Loading...</span>
         </div>
       </div>
     );
   }
 
+  // Stepper
+  if (phase === "stepper") {
+    return <JobsStepper defaultLocation={defaultLocation} onComplete={runJobPipeline} />;
+  }
+
+  // Fetching
+  if (phase === "fetching") {
+    return (
+      <div className="min-h-screen bg-[#F0EDE7] dark:bg-[#1A1A1A] flex items-center justify-center font-['Inter']">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center gap-4"
+          data-testid="fetching-state"
+        >
+          <Sparkles className="w-8 h-8 text-violet-500 animate-pulse" />
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={fetchStatus}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="text-[16px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7]"
+            >
+              {fetchStatus}
+            </motion.span>
+          </AnimatePresence>
+          <span className="text-[13px] text-[#7A736C] dark:text-[#9E9893]">This takes a few seconds...</span>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Kanban
   return (
     <div
       className="min-h-screen bg-[#F0EDE7] dark:bg-[#1A1A1A] font-['Inter'] text-[#1A1A1A] dark:text-[#F0EDE7] transition-colors duration-700"
@@ -220,10 +295,7 @@ export default function Jobs() {
               className="flex items-center gap-1.5 text-[13px] font-medium text-[#7A736C] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] transition-colors group"
               data-testid="back-to-builder"
             >
-              <ArrowLeft
-                size={16}
-                className="transition-transform group-hover:-translate-x-0.5"
-              />
+              <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
               Builder
             </button>
             <div className="w-px h-5 bg-black/10 dark:bg-white/10" />
@@ -237,17 +309,14 @@ export default function Jobs() {
           </div>
           <div className="flex items-center gap-3">
             <Button
-              onClick={fetchAIJobs}
-              disabled={isLoading}
+              onClick={handleSearchAgain}
               variant="outline"
               size="sm"
               className="h-8 px-3 rounded-full text-[12px] font-medium border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 gap-1.5"
-              data-testid="refresh-ai-picks"
+              data-testid="search-again-btn"
             >
-              <Sparkles
-                className={cn("w-3.5 h-3.5 text-violet-500", isLoading && "animate-spin")}
-              />
-              {isLoading ? "Finding jobs..." : "Refresh AI Picks"}
+              <RotateCcw className="w-3.5 h-3.5" />
+              Search again
             </Button>
             <AnimatedThemeToggler />
           </div>
@@ -283,18 +352,11 @@ export default function Jobs() {
               const Icon = COLUMN_ICONS[colId];
               const items = columns[colId] || [];
               return (
-                <KanbanColumn
-                  key={colId}
-                  value={colId}
-                  className="min-h-[calc(100vh-180px)]"
-                >
-                  {/* Column Header */}
+                <KanbanColumn key={colId} value={colId} className="min-h-[calc(100vh-180px)]">
                   <div className="flex items-center justify-between mb-3 px-1">
                     <div className="flex items-center gap-2">
                       <div className={cn("w-2 h-2 rounded-full", COLUMN_DOT_COLORS[colId])} />
-                      <span className="text-[13px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7]">
-                        {COLUMN_LABELS[colId]}
-                      </span>
+                      <span className="text-[13px] font-semibold">{COLUMN_LABELS[colId]}</span>
                       <span className="text-[11px] font-medium text-[#7A736C] dark:text-[#9E9893] bg-black/[0.04] dark:bg-white/[0.06] w-5 h-5 flex items-center justify-center rounded-full">
                         {items.length}
                       </span>
@@ -302,41 +364,26 @@ export default function Jobs() {
                     <Icon className={cn("w-3.5 h-3.5", COLUMN_COLORS[colId])} />
                   </div>
 
-                  {/* Column Content */}
                   <KanbanColumnContent
                     value={colId}
                     className={cn(
                       "flex-1 rounded-xl p-2 min-h-[200px]",
                       "bg-black/[0.02] dark:bg-white/[0.02]",
-                      "border border-dashed border-transparent",
-                      "transition-colors",
+                      "border border-dashed border-transparent transition-colors",
                       items.length === 0 && "border-black/8 dark:border-white/8"
                     )}
                   >
-                    {/* Loading state for AI Picks */}
-                    {colId === "ai-picks" && isLoading && (
-                      <div className="flex flex-col items-center justify-center py-12 gap-3">
-                        <Sparkles className="w-6 h-6 text-violet-500 animate-pulse" />
-                        <span className="text-[13px] font-medium text-[#7A736C] dark:text-[#9E9893]">
-                          Finding matches...
-                        </span>
-                      </div>
-                    )}
-
                     {items.map((job) => (
                       <KanbanItem key={job.id} value={job.id}>
-                        <JobCard job={job} columnId={colId} />
+                        <JobCard job={job} />
                       </KanbanItem>
                     ))}
 
-                    {/* Empty state */}
-                    {!isLoading && items.length === 0 && (
+                    {items.length === 0 && (
                       <div className="flex flex-col items-center justify-center py-10 text-center">
                         <Icon className={cn("w-5 h-5 mb-2 opacity-30", COLUMN_COLORS[colId])} />
                         <p className="text-[12px] text-[#7A736C] dark:text-[#9E9893] font-medium">
-                          {colId === "ai-picks"
-                            ? "Click 'Refresh AI Picks' to find matches"
-                            : "Drag jobs here"}
+                          {colId === "ai-picks" ? "No matches yet" : "Drag jobs here"}
                         </p>
                       </div>
                     )}
@@ -346,16 +393,13 @@ export default function Jobs() {
             })}
           </KanbanBoard>
 
-          {/* Drag Overlay */}
           <KanbanOverlay>
             {({ value }) => {
-              const job = Object.values(columns)
-                .flat()
-                .find((j) => j.id === value);
+              const job = Object.values(columns).flat().find((j) => j.id === value);
               if (!job) return null;
               return (
                 <div className="rotate-[2deg] scale-105">
-                  <JobCard job={job} columnId="" />
+                  <JobCard job={job} />
                 </div>
               );
             }}
