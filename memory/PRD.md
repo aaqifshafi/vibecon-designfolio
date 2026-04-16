@@ -1,26 +1,42 @@
-# Vibecon Designfolio - PRD
+# Designfolio — AI Career Hub PRD
+
+## Original Problem Statement
+Pull code from connected public Git repository, install dependencies, fix build errors, and run the Vite frontend development server locally. Then wire up a Resume-to-Portfolio builder (PDF extraction to Gemini to IndexedDB), build a Kanban Job tracking board populated via RapidAPI JSearch and ranked by Gemini, add a pre-gate Job Onboarding Stepper, integrate Anam.ai for Mock Interviews on job cards, build a context-aware "Ask Scout" AI chat, add an Offer Decision assistant, implement a "COSMOS" 2D constellation job explorer, optimize Gemini ranking logic using embeddings, display company logos and replace match score text with a new visual Gauge component.
 
 ## Architecture
-- **Stack**: Vite 7.3 + React 19 + TypeScript + Tailwind CSS v4 + Wouter + @dnd-kit + @anam-ai/js-sdk
-- **Data**: IndexedDB (`portfolioBuilder` v2)
-- **APIs**: Gemini 2.5 Flash, JSearch/RapidAPI, Nominatim, Anam.ai
+- **Frontend**: React + Vite + TailwindCSS + Framer Motion + Wouter
+- **Storage**: IndexedDB (client-side only, no backend)
+- **APIs**: Gemini (ranking/chat/scoring/embeddings), RapidAPI/JSearch (jobs), Anam.ai (video avatars), Nominatim OSM (location)
+- **Keys**: `/app/client/.env.local` (VITE_GEMINI_API_KEY, VITE_RAPIDAPI_KEY, VITE_ANAM_API_KEY)
 
-## Implemented Features
-1. Resume-to-Portfolio Builder (/ → /builder)
-2. Jobs Stepper + Kanban Board (/jobs - Board view)
-3. AI Mock Interview (Anam Avatar) + Feedback Report
-4. Ask Scout — Per-Job AI Chat
-5. Offer Decision Assistant (conversational stepper)
-6. **COSMOS — Constellation Job Explorer (NEW)**
-   - Board ↔ Cosmos toggle in header
-   - Dark space background with radial gradient
-   - User at center, jobs as glowing stars
-   - Star properties: size=weight, glow=resonance, color=companyType
-   - Clustering by company type (startup/mid/enterprise/agency)
-   - Hover: tooltip with company, role, emotional insight
-   - Click: OFERTA side panel with "Why this fits you", emotional quote, apply CTA
-   - Gemini computes emotional alignment (distance, resonance, weight, insights)
-   - Fallback layout when Gemini unavailable
-   - Legend showing company type colors
-   - Job title clickable in Kanban → opens same OFERTA panel
-   - NO scores shown (per PRD rule)
+## Completed Features
+1. Git clone + Vite dev server setup
+2. Resume-to-Portfolio Builder (PDF parse -> Gemini -> IndexedDB)
+3. `/jobs` Kanban Board (RapidAPI JSearch + Gemini ranking)
+4. API keys in `.env.local` + Vercel deployment config
+5. Jobs Onboarding Stepper (Nominatim location autocomplete)
+6. Vite HMR full-page refresh bug fix
+7. Anam.ai Video Mock Interview Modal
+8. AI Interview Feedback Report generation
+9. "Ask Scout" per-job AI Chat
+10. Offer Decision Assistant (conversational flow for >= 2 offers)
+11. COSMOS Constellation view with gravity filters
+12. Individual embedding/heuristic Gemini ranking (no more 50% clustering)
+13. JSearch country code resolution from Nominatim
+14. **Company logos** on JobCard and JobDetailPanel (employer_logo from JSearch)
+15. **Gauge component** replacing text match scores on JobCard and JobDetailPanel
+
+## Key Files
+- `/app/client/src/pages/jobs.tsx` — Kanban board + inline JobCard component
+- `/app/client/src/components/job-detail-panel.tsx` — Slide-out detail panel
+- `/app/client/src/components/ui/gauge-1.tsx` — Animated SVG gauge component
+- `/app/client/src/lib/jsearch.ts` — JSearch API integration (maps employer_logo)
+- `/app/client/src/lib/job-types.ts` — JobItem type (includes employerLogo field)
+- `/app/client/src/lib/gemini-jobs.ts` — Gemini ranking logic
+- `/app/client/src/components/cosmos-view.tsx` — COSMOS constellation view
+- `/app/client/src/components/scout-chat.tsx` — Ask Scout AI chat
+- `/app/client/src/components/offer-decision-chat.tsx` — Offer comparison assistant
+- `/app/client/src/components/interview-modal.tsx` — Anam.ai interview modal
+
+## Backlog
+- No pending tasks from PRDs. All requested features are implemented.

@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, MapPin, ExternalLink, Building2 } from "lucide-react";
+import { Gauge } from "@/components/ui/gauge-1";
 import type { JobItem } from "@/lib/job-types";
 
 interface Props {
@@ -32,13 +33,27 @@ export default function JobDetailPanel({ job, onClose }: Props) {
           >
             {/* Header */}
             <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-black/5 dark:border-white/5">
-              <div className="min-w-0 flex-1 mr-3">
-                <h2 className="text-[18px] font-bold text-[#1A1A1A] dark:text-[#F0EDE7] leading-tight mb-1">
-                  {job.title}
-                </h2>
-                <div className="flex items-center gap-1.5 text-[13px] text-[#7A736C] dark:text-[#9E9893]">
-                  <Building2 className="w-3.5 h-3.5 shrink-0" />
-                  {job.company}
+              <div className="flex items-start gap-3 min-w-0 flex-1 mr-3">
+                {job.employerLogo ? (
+                  <img
+                    src={job.employerLogo}
+                    alt={`${job.company} logo`}
+                    className="w-10 h-10 rounded-xl object-contain bg-white dark:bg-white/10 border border-black/5 dark:border-white/10 shrink-0"
+                    data-testid="detail-employer-logo"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0">
+                    <Building2 className="w-5 h-5 text-[#7A736C]/50 dark:text-[#9E9893]/50" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-[18px] font-bold text-[#1A1A1A] dark:text-[#F0EDE7] leading-tight mb-1">
+                    {job.title}
+                  </h2>
+                  <span className="text-[13px] text-[#7A736C] dark:text-[#9E9893] font-medium">
+                    {job.company}
+                  </span>
                 </div>
               </div>
               <button
@@ -71,9 +86,26 @@ export default function JobDetailPanel({ job, onClose }: Props) {
                   </span>
                 )}
                 {job.matchScore > 0 && (
-                  <span className="text-[12px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-950/30 px-2.5 py-1 rounded-full">
-                    {job.matchScore}% match
-                  </span>
+                  <div className="flex items-center gap-2 text-[#1A1A1A] dark:text-[#F0EDE7]" data-testid="detail-gauge-score">
+                    <Gauge
+                      value={job.matchScore}
+                      size={44}
+                      strokeWidth={4.5}
+                      showValue={true}
+                      showPercentage={true}
+                      gapPercent={3}
+                      primary={{
+                        0: "danger",
+                        50: "warning",
+                        70: "info",
+                        85: "success",
+                      }}
+                      secondary="rgba(120,120,120,0.1)"
+                      className={{
+                        textClassName: "text-[10px] font-bold",
+                      }}
+                    />
+                  </div>
                 )}
               </div>
 

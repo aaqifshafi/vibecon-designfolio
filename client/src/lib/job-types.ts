@@ -3,13 +3,14 @@ export interface JobItem {
   title: string;
   company: string;
   location: string;
-  type: string; // "Full-time" | "Part-time" | "Contract" | "Remote"
+  type: string;
   salary?: string;
   description: string;
-  matchScore: number; // 0-100
+  matchScore: number;
   tags: string[];
   postedDate: string;
   url?: string;
+  employerLogo?: string;
 }
 
 export type JobColumn = "ai-picks" | "shortlisted" | "applied" | "interview" | "offer";

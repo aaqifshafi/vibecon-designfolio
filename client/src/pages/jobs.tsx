@@ -31,6 +31,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { Gauge } from "@/components/ui/gauge-1";
 import { useResume } from "@/context/ResumeContext";
 import { getResumeData } from "@/lib/indexeddb";
 import { getJobsData, setJobsData } from "@/lib/jobs-db";
@@ -78,16 +79,28 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
       className="bg-white dark:bg-[#2A2520] rounded-xl border border-black/5 dark:border-white/8 p-4 shadow-sm hover:shadow-md transition-shadow group/card"
     >
       <div className="flex items-start justify-between gap-2 mb-2.5">
-        <div className="min-w-0 flex-1">
-          <h4
-            className={cn("text-[14px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] leading-tight truncate", onClickTitle && "cursor-pointer hover:text-violet-600 dark:hover:text-violet-400 transition-colors")}
-            onClick={onClickTitle ? (e) => { e.stopPropagation(); onClickTitle(job); } : undefined}
-          >
-            {job.title}
-          </h4>
-          <div className="flex items-center gap-1.5 mt-1">
-            <Building2 className="w-3 h-3 text-[#7A736C] dark:text-[#9E9893] shrink-0" />
-            <span className="text-[12px] text-[#7A736C] dark:text-[#9E9893] truncate font-medium">
+        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+          {job.employerLogo ? (
+            <img
+              src={job.employerLogo}
+              alt={`${job.company} logo`}
+              className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-white/10 border border-black/5 dark:border-white/10 shrink-0 mt-0.5"
+              data-testid={`employer-logo-${job.id}`}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
+              <Building2 className="w-4 h-4 text-[#7A736C]/50 dark:text-[#9E9893]/50" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <h4
+              className={cn("text-[14px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] leading-tight truncate", onClickTitle && "cursor-pointer hover:text-violet-600 dark:hover:text-violet-400 transition-colors")}
+              onClick={onClickTitle ? (e) => { e.stopPropagation(); onClickTitle(job); } : undefined}
+            >
+              {job.title}
+            </h4>
+            <span className="text-[12px] text-[#7A736C] dark:text-[#9E9893] truncate font-medium block mt-0.5">
               {job.company}
             </span>
           </div>
@@ -135,18 +148,28 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
-          <div
-            className={cn(
-              "text-[11px] font-bold px-2 py-0.5 rounded-full",
-              job.matchScore >= 90
-                ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-                : job.matchScore >= 80
-                  ? "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400"
-                  : "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400"
-            )}
-          >
-            {job.matchScore}%
-          </div>
+          {job.matchScore > 0 && (
+            <div data-testid={`gauge-score-${job.id}`} className="text-[#1A1A1A] dark:text-[#F0EDE7]">
+              <Gauge
+                value={job.matchScore}
+                size={38}
+                strokeWidth={4}
+                showValue={true}
+                showPercentage={false}
+                gapPercent={3}
+                primary={{
+                  0: "danger",
+                  50: "warning",
+                  70: "info",
+                  85: "success",
+                }}
+                secondary="rgba(120,120,120,0.1)"
+                className={{
+                  textClassName: "text-[10px] font-bold",
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
 

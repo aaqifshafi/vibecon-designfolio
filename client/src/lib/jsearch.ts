@@ -21,6 +21,7 @@ interface JSearchResult {
   job_apply_link: string;
   job_is_remote: boolean;
   job_required_skills: string[] | null;
+  employer_logo: string | null;
   job_highlights?: {
     Qualifications?: string[];
     Responsibilities?: string[];
@@ -78,6 +79,7 @@ function toJobItem(r: JSearchResult, index: number): JobItem {
     tags: buildTags(r),
     postedDate: timeAgo(r.job_posted_at_datetime_utc),
     url: r.job_apply_link || undefined,
+    employerLogo: r.employer_logo || undefined,
   };
 }
 
