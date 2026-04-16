@@ -1,0 +1,400 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+}
+
+:root {
+  --background: 42 16% 92%;
+  --foreground: 20 10% 15%;
+  --card: 46 29% 94%;
+  --card-foreground: 20 10% 15%;
+  --popover: 46 29% 94%;
+  --popover-foreground: 20 10% 15%;
+  --primary: 20 10% 15%;
+  --primary-foreground: 46 29% 94%;
+  --secondary: 46 15% 88%;
+  --secondary-foreground: 20 10% 15%;
+  --muted: 46 15% 88%;
+  --muted-foreground: 20 5% 45%;
+  --accent: 46 15% 88%;
+  --accent-foreground: 20 10% 15%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 46 15% 80%;
+  --input: 46 15% 80%;
+  --ring: 20 10% 15%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 20 10% 10%;
+  --foreground: 46 29% 94%;
+  --card: 20 10% 12%;
+  --card-foreground: 46 29% 94%;
+  --popover: 20 10% 12%;
+  --popover-foreground: 46 29% 94%;
+  --primary: 46 29% 94%;
+  --primary-foreground: 20 10% 10%;
+  --secondary: 20 10% 15%;
+  --secondary-foreground: 46 29% 94%;
+  --muted: 20 10% 15%;
+  --muted-foreground: 46 10% 60%;
+  --accent: 20 10% 15%;
+  --accent-foreground: 46 29% 94%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 20 10% 20%;
+  --input: 20 10% 20%;
+  --ring: 46 29% 94%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    overflow-x: hidden;
+  }
+  
+  html, body {
+    background-color: var(--page-bg, hsl(var(--background)));
+  }
+}
+
+:root {
+  --theme-panel-width: 320px;
+}
+@media (min-width: 640px) {
+  :root {
+    --theme-panel-width: 400px;
+  }
+}
+
+body {
+  overflow-x: hidden;
+}
+
+#root {
+  transition: padding-right 500ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: padding-right;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100vh;
+  position: relative;
+  background-color: var(--page-bg, hsl(var(--background)));
+}
+
+@media (min-width: 1024px) {
+  #root.theme-panel-open {
+    padding-right: var(--theme-panel-width);
+  }
+}
+
+#root .fixed.top-0 {
+  transition: padding-right 500ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (min-width: 1024px) {
+  #root.theme-panel-open .fixed.top-0 {
+    padding-right: var(--theme-panel-width);
+  }
+}
+
+.theme-panel-animate[data-state="open"] {
+  animation: slide-in-right-custom 500ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.theme-panel-animate[data-state="closed"] {
+  animation: slide-out-right-custom 500ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes slide-in-right-custom {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-right-custom {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes shimmer-text {
+  0% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: 0% center;
+  }
+}
+
+
+/* Speed slider thumb styling */
+input[type="range"].speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1D1B1A;
+  cursor: pointer;
+  border: 2px solid #F4F3E5;
+  box-shadow: 0 0 0 1px #1D1B1A33;
+  transition: transform 0.15s ease;
+}
+input[type="range"].speed-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+input[type="range"].speed-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1D1B1A;
+  cursor: pointer;
+  border: 2px solid #F4F3E5;
+  box-shadow: 0 0 0 1px #1D1B1A33;
+}
+.dark input[type="range"].speed-slider::-webkit-slider-thumb {
+  background: hsl(var(--foreground));
+  border-color: hsl(var(--card));
+}
+.dark input[type="range"].speed-slider::-moz-range-thumb {
+  background: hsl(var(--foreground));
+  border-color: hsl(var(--card));
+}
+
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Match glow card ─────────────────────────────────────────── */
+@keyframes moveDot {
+  0%,
+  100% {
+    top: 10%;
+    right: 10%;
+  }
+  25% {
+    top: 10%;
+    right: calc(100% - 35px);
+  }
+  50% {
+    top: calc(100% - 30px);
+    right: calc(100% - 35px);
+  }
+  75% {
+    top: calc(100% - 30px);
+    right: 10%;
+  }
+}
+
+@keyframes scanLine {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.7; }
+}
+
+.match-glow-outer {
+  position: relative;
+  width: 100%;
+}
+
+.match-glow-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(140deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.05) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .match-glow-card {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.match-glow-ray {
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 180px;
+  height: 120px;
+  background: radial-gradient(ellipse, rgba(160, 160, 170, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.match-glow-line {
+  position: absolute;
+  animation: scanLine 4s ease-in-out infinite;
+}
+
+.match-glow-line.topl {
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(150, 150, 160, 0.5) 50%, transparent 100%);
+  animation-delay: 0s;
+}
+
+.match-glow-line.bottoml {
+  bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(150, 150, 160, 0.5) 50%, transparent 100%);
+  animation-delay: 2s;
+}
+
+.match-glow-line.leftl {
+  top: 0; bottom: 0; left: 0; width: 1px;
+  background: linear-gradient(180deg, transparent 0%, rgba(150, 150, 160, 0.5) 50%, transparent 100%);
+  animation-delay: 1s;
+}
+
+.match-glow-line.rightl {
+  top: 0; bottom: 0; right: 0; width: 1px;
+  background: linear-gradient(180deg, transparent 0%, rgba(150, 150, 160, 0.5) 50%, transparent 100%);
+  animation-delay: 3s;
+}
+
+/* ── Color Orb ─────────────────────────────────────────────────────────────── */
+@property --orb-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.color-orb {
+  display: grid;
+  grid-template-areas: "stack";
+  overflow: hidden;
+  border-radius: 50%;
+  position: relative;
+  transform: scale(1.1);
+  flex-shrink: 0;
+  background: oklch(78% 0.01 80 / 0.55);
+}
+
+.color-orb::before,
+.color-orb::after {
+  content: "";
+  display: block;
+  grid-area: stack;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform: translateZ(0);
+}
+
+/* Colorful spinning layer — paused + invisible by default */
+.color-orb::before {
+  background:
+    conic-gradient(from calc(var(--orb-angle) * 2) at 25% 70%, var(--orb-accent3), transparent 20% 80%, var(--orb-accent3)),
+    conic-gradient(from calc(var(--orb-angle) * 2) at 45% 75%, var(--orb-accent2), transparent 30% 60%, var(--orb-accent2)),
+    conic-gradient(from calc(var(--orb-angle) * -3) at 80% 20%, var(--orb-accent1), transparent 40% 60%, var(--orb-accent1)),
+    conic-gradient(from calc(var(--orb-angle) * 2) at 15% 5%, var(--orb-accent2), transparent 10% 90%, var(--orb-accent2)),
+    conic-gradient(from calc(var(--orb-angle) * 1) at 20% 80%, var(--orb-accent1), transparent 10% 90%, var(--orb-accent1)),
+    conic-gradient(from calc(var(--orb-angle) * -2) at 85% 10%, var(--orb-accent3), transparent 20% 80%, var(--orb-accent3));
+  box-shadow: inset var(--orb-base) 0 0 var(--orb-shadow) calc(var(--orb-shadow) * 0.2);
+  filter: blur(var(--orb-blur)) contrast(var(--orb-contrast));
+  animation: orb-spin var(--orb-spin-duration) linear infinite;
+  animation-play-state: paused;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* Dot grid — visible at rest, fades out on hover */
+.color-orb::after {
+  background-image: radial-gradient(circle at center, oklch(48% 0.01 80 / 0.45) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: normal;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+
+/* Button adjusts gap + padding to breathe with the growing orb */
+.orb-activates-on-hover {
+  overflow: visible;
+  gap: 6px;
+  padding-left: 12px;
+  padding-right: 12px;
+  transition: color 0.4s ease,
+              background-color 0.4s ease,
+              gap 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              padding-left 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.orb-activates-on-hover:hover {
+  gap: 10px;
+  padding-left: 9px;
+}
+
+/* Orb scales in place, doesn't affect button layout */
+.orb-activates-on-hover .color-orb {
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.orb-activates-on-hover:hover .color-orb {
+  transform: scale(1.6);
+}
+
+/* On hover: color layer fades in, dot grid fades out */
+.orb-activates-on-hover:hover .color-orb::before {
+  animation-play-state: running;
+  opacity: 1;
+}
+.orb-activates-on-hover:hover .color-orb::after {
+  opacity: 0;
+}
+
+@keyframes orb-spin {
+  to { --orb-angle: 360deg; }
+}
+
+/* Orb always active — colorful spinning, no hover needed */
+.orb-always-active .color-orb {
+  transform: scale(1.6);
+}
+.orb-always-active .color-orb::before {
+  animation-play-state: running;
+  opacity: 1;
+}
+.orb-always-active .color-orb::after {
+  opacity: 0;
+}
+
+/* Orb always spinning but without forced scale — for inline/avatar use */
+.orb-spinning .color-orb::before {
+  animation-play-state: running;
+  opacity: 1;
+}
+.orb-spinning .color-orb::after {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .color-orb::before { animation: none !important; opacity: 0 !important; }
+}

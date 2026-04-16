@@ -1,0 +1,256 @@
+Build this as my initial prototype
+
+Copy-paste this component to /components/ui folder:
+```tsx
+text-reveal-faqs.tsx
+'use client'
+
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import Link from 'next/link'
+import { motion } from "framer-motion";
+
+
+export default function FAQs() {
+  const faqItems = [
+    {
+      id: 'item-1',
+      question: 'What is Ruixen UI?',
+      answer: 'Ruixen UI is a modern, fully responsive design system that provides pre-built components, utilities, and layouts to help developers build scalable web applications quickly and efficiently.',
+    },
+    {
+      id: 'item-2',
+      question: 'Which platforms does Ruixen UI support?',
+      answer: 'Ruixen UI is built for web applications and works seamlessly with React, Next.js, and other modern JavaScript frameworks. It also supports dark mode and responsive layouts out of the box.',
+    },
+    {
+      id: 'item-3',
+      question: 'Can I customize Ruixen UI components?',
+      answer: 'Yes! All Ruixen UI components are fully customizable via props, CSS classes, and theme configuration. You can easily adapt colors, spacing, typography, and layout to match your brand.',
+    },
+    {
+      id: 'item-4',
+      question: 'Does Ruixen UI provide integration with third-party tools?',
+      answer: 'Absolutely. Ruixen UI includes ready-to-use integrations and patterns for popular tools and services, making it easier to connect your application with analytics, authentication, and workflow platforms.',
+    },
+    {
+      id: 'item-5',
+      question: 'Is there documentation and support available?',
+      answer: 'Yes, Ruixen UI comes with comprehensive documentation, live examples, and tutorials. Additionally, our community and support channels are available to help you implement components and resolve any issues.',
+    },
+  ];
+
+
+  return (
+    <section className="py-16 md:py-24">
+      <div className="mx-auto max-w-5xl px-6">
+        <div className="grid gap-8 md:grid-cols-5 md:gap-12">
+          <div className="md:col-span-2">
+            <h2 className="text-foreground text-4xl font-semibold">FAQs</h2>
+            <p className="text-muted-foreground mt-4 text-balance text-lg">
+              Everything you need to know about Ruixen UI
+            </p>
+            <p className="text-muted-foreground mt-6 hidden md:block">
+              Can’t find what you’re looking for? Reach out to our{' '}
+              <Link
+                href="#"
+                className="text-primary font-medium hover:underline"
+              >
+                Ruixen UI support team
+              </Link>{' '}
+              for assistance.
+            </p>
+          </div>
+
+          <div className="md:col-span-3">
+            <Accordion
+              type="single"
+              collapsible>
+              {faqItems.map((item) => (
+                <AccordionItem
+                  key={item.id}
+                  value={item.id}
+                  className="border-b border-gray-200 dark:border-gray-600">
+                  <AccordionTrigger className="cursor-pointer text-base font-medium hover:no-underline">{item.question}</AccordionTrigger>
+                  <AccordionContent>
+                    <BlurredStagger text={item.answer} />
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+
+          <p className="text-muted-foreground mt-6 md:hidden">
+            Can't find what you're looking for? Contact our{' '}
+            <Link
+              href="#"
+              className="text-primary font-medium hover:underline">
+              customer support team
+            </Link>
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+ 
+export const BlurredStagger = ({
+  text = "built by ruixen.com",
+}: {
+  text: string;
+}) => {
+  const headingText = text;
+ 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.015,
+      },
+    },
+  };
+ 
+  const letterAnimation = {
+    hidden: {
+      opacity: 0,
+      filter: "blur(10px)",
+    },
+    show: {
+      opacity: 1,
+      filter: "blur(0px)",
+    },
+  };
+ 
+  return (
+    <>
+      <div className="w-full">
+        <motion.p
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="text-base leading-relaxed break-words whitespace-normal"
+        >
+          {headingText.split("").map((char, index) => (
+            <motion.span
+              key={index}
+              variants={letterAnimation}
+              transition={{ duration: 0.3 }}
+              className="inline-block"
+            >
+              {char === " " ? "\u00A0" : char}
+            </motion.span>
+          ))}
+        </motion.p>
+      </div>
+    </>
+  );
+};
+
+demo.tsx
+import FAQs from "@/components/ui/text-reveal-faqs";
+
+export default function DemoOne() {
+  return <FAQs />;
+}
+
+```
+
+Copy-paste these files for dependencies:
+```tsx
+shadcn/accordion
+"use client"
+
+import * as React from "react"
+import * as AccordionPrimitive from "@radix-ui/react-accordion"
+import { ChevronDown } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+const Accordion = AccordionPrimitive.Root
+
+const AccordionItem = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
+>(({ className, ...props }, ref) => (
+  <AccordionPrimitive.Item
+    ref={ref}
+    className={cn("border-b", className)}
+    {...props}
+  />
+))
+AccordionItem.displayName = "AccordionItem"
+
+const AccordionTrigger = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <AccordionPrimitive.Header className="flex">
+    <AccordionPrimitive.Trigger
+      ref={ref}
+      className={cn(
+        "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+    </AccordionPrimitive.Trigger>
+  </AccordionPrimitive.Header>
+))
+AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
+
+const AccordionContent = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <AccordionPrimitive.Content
+    ref={ref}
+    className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+    {...props}
+  >
+    <div className={cn("pb-4 pt-0", className)}>{children}</div>
+  </AccordionPrimitive.Content>
+))
+
+AccordionContent.displayName = AccordionPrimitive.Content.displayName
+
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
+
+```
+
+Install these NPM dependencies:
+```bash
+next, framer-motion, lucide-react, @radix-ui/react-accordion
+```
+
+Extend existing Tailwind 4 index.css with this code (or if project uses Tailwind 3, extend tailwind.config.js or globals.css):
+```css
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+```

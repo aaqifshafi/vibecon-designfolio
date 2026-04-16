@@ -1,0 +1,1469 @@
+Build this as my initial prototype
+
+Copy-paste this component to /components/ui folder:
+```tsx
+kanban.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
+'use client';
+
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+import {
+  defaultDropAnimation,
+  defaultDropAnimationSideEffects,
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  DragStartEvent,
+  DropAnimation,
+  KeyboardSensor,
+  PointerSensor,
+  UniqueIdentifier,
+  useSensor,
+  useSensors,
+  type DraggableAttributes,
+  type DraggableSyntheticListeners,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Slot } from '@radix-ui/react-slot';
+
+interface KanbanContextProps<T> {
+  columns: Record<string, T[]>;
+  setColumns: (columns: Record<string, T[]>) => void;
+  getItemId: (item: T) => string;
+  columnIds: string[];
+  activeId: UniqueIdentifier | null;
+  setActiveId: (id: UniqueIdentifier | null) => void;
+  findContainer: (id: UniqueIdentifier) => string | undefined;
+  isColumn: (id: UniqueIdentifier) => boolean;
+}
+
+const KanbanContext = React.createContext<KanbanContextProps<any>>({
+  columns: {},
+  setColumns: () => {},
+  getItemId: () => '',
+  columnIds: [],
+  activeId: null,
+  setActiveId: () => {},
+  findContainer: () => undefined,
+  isColumn: () => false,
+});
+
+const ColumnContext = React.createContext<{
+  attributes: DraggableAttributes;
+  listeners: DraggableSyntheticListeners | undefined;
+  isDragging?: boolean;
+  disabled?: boolean;
+}>({
+  attributes: {} as DraggableAttributes,
+  listeners: undefined,
+  isDragging: false,
+  disabled: false,
+});
+
+const ItemContext = React.createContext<{
+  listeners: DraggableSyntheticListeners | undefined;
+  isDragging?: boolean;
+  disabled?: boolean;
+}>({
+  listeners: undefined,
+  isDragging: false,
+  disabled: false,
+});
+
+const dropAnimationConfig: DropAnimation = {
+  ...defaultDropAnimation,
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: '0.4',
+      },
+    },
+  }),
+};
+
+export interface KanbanMoveEvent {
+  event: DragEndEvent;
+  activeContainer: string;
+  activeIndex: number;
+  overContainer: string;
+  overIndex: number;
+}
+
+export interface KanbanRootProps<T> {
+  value: Record<string, T[]>;
+  onValueChange: (value: Record<string, T[]>) => void;
+  getItemValue: (item: T) => string;
+  children: React.ReactNode;
+  className?: string;
+  onMove?: (event: KanbanMoveEvent) => void;
+}
+
+function Kanban<T>({ value, onValueChange, getItemValue, children, className, onMove }: KanbanRootProps<T>) {
+  const columns = value;
+  const setColumns = onValueChange;
+  const [activeId, setActiveId] = React.useState<UniqueIdentifier | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const columnIds = React.useMemo(() => Object.keys(columns), [columns]);
+
+  const isColumn = React.useCallback((id: UniqueIdentifier) => columnIds.includes(id as string), [columnIds]);
+
+  const findContainer = React.useCallback(
+    (id: UniqueIdentifier) => {
+      if (isColumn(id)) return id as string;
+      return columnIds.find((key) => columns[key].some((item) => getItemValue(item) === id));
+    },
+    [columns, columnIds, getItemValue, isColumn],
+  );
+
+  const handleDragStart = React.useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id);
+  }, []);
+
+  const handleDragOver = React.useCallback(
+    (event: DragOverEvent) => {
+      if (onMove) {
+        return;
+      }
+
+      const { active, over } = event;
+      if (!over) return;
+
+      if (isColumn(active.id)) return;
+
+      const activeContainer = findContainer(active.id);
+      const overContainer = findContainer(over.id);
+
+      // Only handle moving items between different columns
+      if (!activeContainer || !overContainer || activeContainer === overContainer) {
+        return;
+      }
+
+      const activeItems = columns[activeContainer];
+      const overItems = columns[overContainer];
+
+      const activeIndex = activeItems.findIndex((item: T) => getItemValue(item) === active.id);
+      let overIndex = overItems.findIndex((item: T) => getItemValue(item) === over.id);
+
+      // If dropping on the column itself, not an item
+      if (isColumn(over.id)) {
+        overIndex = overItems.length;
+      }
+
+      const newOverItems = [...overItems];
+      const [movedItem] = activeItems.splice(activeIndex, 1);
+      newOverItems.splice(overIndex, 0, movedItem);
+
+      setColumns({
+        ...columns,
+        [activeContainer]: [...activeItems],
+        [overContainer]: newOverItems,
+      });
+    },
+    [findContainer, getItemValue, isColumn, setColumns, columns, onMove],
+  );
+
+  const handleDragEnd = React.useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveId(null);
+
+      if (!over) return;
+
+      // Handle item move callback
+      if (onMove && !isColumn(active.id)) {
+        const activeContainer = findContainer(active.id);
+        const overContainer = findContainer(over.id);
+
+        if (activeContainer && overContainer) {
+          const activeIndex = columns[activeContainer].findIndex((item: T) => getItemValue(item) === active.id);
+          const overIndex = isColumn(over.id)
+            ? columns[overContainer].length
+            : columns[overContainer].findIndex((item: T) => getItemValue(item) === over.id);
+
+          onMove({
+            event,
+            activeContainer,
+            activeIndex,
+            overContainer,
+            overIndex,
+          });
+        }
+        return;
+      }
+
+      // Handle column reordering
+      if (isColumn(active.id) && isColumn(over.id)) {
+        const activeIndex = columnIds.indexOf(active.id as string);
+        const overIndex = columnIds.indexOf(over.id as string);
+        if (activeIndex !== overIndex) {
+          const newOrder = arrayMove(Object.keys(columns), activeIndex, overIndex);
+          const newColumns: Record<string, T[]> = {};
+          newOrder.forEach((key) => {
+            newColumns[key] = columns[key];
+          });
+          setColumns(newColumns);
+        }
+        return;
+      }
+
+      const activeContainer = findContainer(active.id);
+      const overContainer = findContainer(over.id);
+
+      // Handle item reordering within the same column
+      if (activeContainer && overContainer && activeContainer === overContainer) {
+        const container = activeContainer;
+        const activeIndex = columns[container].findIndex((item: T) => getItemValue(item) === active.id);
+        const overIndex = columns[container].findIndex((item: T) => getItemValue(item) === over.id);
+
+        if (activeIndex !== overIndex) {
+          setColumns({
+            ...columns,
+            [container]: arrayMove(columns[container], activeIndex, overIndex),
+          });
+        }
+      }
+    },
+    [columnIds, columns, findContainer, getItemValue, isColumn, setColumns, onMove],
+  );
+
+  const contextValue = React.useMemo(
+    () => ({
+      columns,
+      setColumns,
+      getItemId: getItemValue,
+      columnIds,
+      activeId,
+      setActiveId,
+      findContainer,
+      isColumn,
+    }),
+    [columns, setColumns, getItemValue, columnIds, activeId, findContainer, isColumn],
+  );
+
+  return (
+    <KanbanContext.Provider value={contextValue}>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+        <div data-slot="kanban" data-dragging={activeId !== null} className={cn(className)}>
+          {children}
+        </div>
+      </DndContext>
+    </KanbanContext.Provider>
+  );
+}
+
+export interface KanbanBoardProps {
+  className?: string;
+  children: React.ReactNode;
+}
+
+function KanbanBoard({ children, className }: KanbanBoardProps) {
+  const { columnIds } = React.useContext(KanbanContext);
+
+  return (
+    <SortableContext items={columnIds} strategy={rectSortingStrategy}>
+      <div data-slot="kanban-board" className={cn('grid auto-rows-fr sm:grid-cols-3 gap-4', className)}>
+        {children}
+      </div>
+    </SortableContext>
+  );
+}
+
+export interface KanbanColumnProps {
+  value: string;
+  className?: string;
+  children: React.ReactNode;
+  disabled?: boolean;
+}
+
+function KanbanColumn({ value, className, children, disabled }: KanbanColumnProps) {
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    attributes,
+    listeners,
+    isDragging: isSortableDragging,
+  } = useSortable({
+    id: value,
+    disabled,
+  });
+
+  const { activeId, isColumn } = React.useContext(KanbanContext);
+  const isColumnDragging = activeId ? isColumn(activeId) : false;
+
+  const style = {
+    transition,
+    transform: CSS.Translate.toString(transform),
+  } as React.CSSProperties;
+
+  return (
+    <ColumnContext.Provider value={{ attributes, listeners, isDragging: isColumnDragging, disabled }}>
+      <div
+        data-slot="kanban-column"
+        data-value={value}
+        data-dragging={isSortableDragging}
+        data-disabled={disabled}
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          'group/kanban-column flex flex-col',
+          isSortableDragging && 'opacity-50',
+          disabled && 'opacity-50',
+          className,
+        )}
+      >
+        {children}
+      </div>
+    </ColumnContext.Provider>
+  );
+}
+
+export interface KanbanColumnHandleProps {
+  asChild?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+  cursor?: boolean;
+}
+
+function KanbanColumnHandle({ asChild, className, children, cursor = true }: KanbanColumnHandleProps) {
+  const { attributes, listeners, isDragging, disabled } = React.useContext(ColumnContext);
+
+  const Comp = asChild ? Slot : 'div';
+
+  return (
+    <Comp
+      data-slot="kanban-column-handle"
+      data-dragging={isDragging}
+      data-disabled={disabled}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        'opacity-0 transition-opacity group-hover/kanban-column:opacity-100',
+        cursor && (isDragging ? '!cursor-grabbing' : '!cursor-grab'),
+        className,
+      )}
+    >
+      {children}
+    </Comp>
+  );
+}
+
+export interface KanbanItemProps {
+  value: string;
+  asChild?: boolean;
+  className?: string;
+  children: React.ReactNode;
+  disabled?: boolean;
+}
+
+function KanbanItem({ value, asChild = false, className, children, disabled }: KanbanItemProps) {
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    attributes,
+    listeners,
+    isDragging: isSortableDragging,
+  } = useSortable({
+    id: value,
+    disabled,
+  });
+
+  const { activeId, isColumn } = React.useContext(KanbanContext);
+  const isItemDragging = activeId ? !isColumn(activeId) : false;
+
+  const style = {
+    transition,
+    transform: CSS.Translate.toString(transform),
+  } as React.CSSProperties;
+
+  const Comp = asChild ? Slot : 'div';
+
+  return (
+    <ItemContext.Provider value={{ listeners, isDragging: isItemDragging, disabled }}>
+      <Comp
+        data-slot="kanban-item"
+        data-value={value}
+        data-dragging={isSortableDragging}
+        data-disabled={disabled}
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        className={cn(isSortableDragging && 'opacity-50', disabled && 'opacity-50', className)}
+      >
+        {children}
+      </Comp>
+    </ItemContext.Provider>
+  );
+}
+
+export interface KanbanItemHandleProps {
+  asChild?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+  cursor?: boolean;
+}
+
+function KanbanItemHandle({ asChild, className, children, cursor = true }: KanbanItemHandleProps) {
+  const { listeners, isDragging, disabled } = React.useContext(ItemContext);
+
+  const Comp = asChild ? Slot : 'div';
+
+  return (
+    <Comp
+      data-slot="kanban-item-handle"
+      data-dragging={isDragging}
+      data-disabled={disabled}
+      {...listeners}
+      className={cn(cursor && (isDragging ? '!cursor-grabbing' : '!cursor-grab'), className)}
+    >
+      {children}
+    </Comp>
+  );
+}
+
+export interface KanbanColumnContentProps {
+  value: string;
+  className?: string;
+  children: React.ReactNode;
+}
+
+function KanbanColumnContent({ value, className, children }: KanbanColumnContentProps) {
+  const { columns, getItemId } = React.useContext(KanbanContext);
+
+  const itemIds = React.useMemo(() => columns[value].map(getItemId), [columns, getItemId, value]);
+
+  return (
+    <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+      <div data-slot="kanban-column-content" className={cn('flex flex-col gap-2', className)}>
+        {children}
+      </div>
+    </SortableContext>
+  );
+}
+
+export interface KanbanOverlayProps {
+  className?: string;
+  children?: React.ReactNode | ((params: { value: UniqueIdentifier; variant: 'column' | 'item' }) => React.ReactNode);
+}
+
+function KanbanOverlay({ children, className }: KanbanOverlayProps) {
+  const { activeId, isColumn } = React.useContext(KanbanContext);
+  const [dimensions, setDimensions] = React.useState<{ width: number; height: number } | null>(null);
+
+  React.useEffect(() => {
+    if (activeId) {
+      const element = document.querySelector(
+        `[data-slot="kanban-${isColumn(activeId) ? 'column' : 'item'}"][data-value="${activeId}"]`,
+      );
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        setDimensions({ width: rect.width, height: rect.height });
+      }
+    } else {
+      setDimensions(null);
+    }
+  }, [activeId, isColumn]);
+
+  const style = {
+    width: dimensions?.width,
+    height: dimensions?.height,
+  } as React.CSSProperties;
+
+  const content = React.useMemo(() => {
+    if (!activeId) return null;
+    if (typeof children === 'function') {
+      return children({
+        value: activeId,
+        variant: isColumn(activeId) ? 'column' : 'item',
+      });
+    }
+    return children;
+  }, [activeId, children, isColumn]);
+
+  return (
+    <DragOverlay dropAnimation={dropAnimationConfig}>
+      <div
+        data-slot="kanban-overlay"
+        data-dragging={true}
+        style={style}
+        className={cn('pointer-events-none', className, activeId ? '!cursor-grabbing' : '')}
+      >
+        {content}
+      </div>
+    </DragOverlay>
+  );
+}
+
+export {
+  Kanban,
+  KanbanBoard,
+  KanbanColumn,
+  KanbanColumnHandle,
+  KanbanItem,
+  KanbanItemHandle,
+  KanbanColumnContent,
+  KanbanOverlay,
+};
+
+
+demo.tsx
+'use client';
+
+import * as React from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge-2';
+import { Button } from '@/components/ui/button-1';
+import {
+  Kanban,
+  KanbanBoard,
+  KanbanColumn,
+  KanbanColumnContent,
+  KanbanColumnHandle,
+  KanbanItem,
+  KanbanItemHandle,
+  KanbanOverlay,
+} from '@/components/ui/kanban';
+import { GripVertical } from 'lucide-react';
+
+interface Task {
+  id: string;
+  title: string;
+  priority: 'low' | 'medium' | 'high';
+  description?: string;
+  assignee?: string;
+  assigneeAvatar?: string;
+  dueDate?: string;
+}
+
+const COLUMN_TITLES: Record<string, string> = {
+  backlog: 'Backlog',
+  inProgress: 'In Progress',
+  review: 'Review',
+  done: 'Done',
+};
+
+interface TaskCardProps extends Omit<React.ComponentProps<typeof KanbanItem>, 'value' | 'children'> {
+  task: Task;
+  asHandle?: boolean;
+}
+
+function TaskCard({ task, asHandle, ...props }: TaskCardProps) {
+  const cardContent = (
+    <div className="rounded-md border bg-card p-3 shadow-xs">
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="line-clamp-1 font-medium text-sm">{task.title}</span>
+          <Badge
+            variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'primary' : 'warning'}
+            appearance="outline"
+            className="pointer-events-none h-5 rounded-sm px-1.5 text-[11px] capitalize shrink-0"
+          >
+            {task.priority}
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between text-muted-foreground text-xs">
+          {task.assignee && (
+            <div className="flex items-center gap-1">
+              <Avatar className="size-4">
+                <AvatarImage src={task.assigneeAvatar} />
+                <AvatarFallback>{task.assignee.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <span className="line-clamp-1">{task.assignee}</span>
+            </div>
+          )}
+          {task.dueDate && <time className="text-[10px] tabular-nums whitespace-nowrap">{task.dueDate}</time>}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <KanbanItem value={task.id} {...props}>
+      {asHandle ? <KanbanItemHandle>{cardContent}</KanbanItemHandle> : cardContent}
+    </KanbanItem>
+  );
+}
+
+interface TaskColumnProps extends Omit<React.ComponentProps<typeof KanbanColumn>, 'children'> {
+  tasks: Task[];
+  isOverlay?: boolean;
+}
+
+function TaskColumn({ value, tasks, isOverlay, ...props }: TaskColumnProps) {
+  return (
+ 
+        <KanbanColumn value={value} {...props} className="rounded-md border bg-card p-2.5 shadow-xs">
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2.5">
+              <span className="font-semibold text-sm">{COLUMN_TITLES[value]}</span>
+              <Badge variant="secondary">{tasks.length}</Badge>
+            </div>
+            <KanbanColumnHandle asChild>
+              <Button variant="dim" size="sm" mode="icon">
+                <GripVertical />
+              </Button>
+            </KanbanColumnHandle>
+          </div>
+          <KanbanColumnContent value={value} className="flex flex-col gap-2.5 p-0.5">
+            {tasks.map((task) => (
+              <TaskCard key={task.id} task={task} asHandle={!isOverlay} />
+            ))}
+          </KanbanColumnContent>
+        </KanbanColumn>
+  );
+}
+
+export default function Component() {
+  const [columns, setColumns] = React.useState<Record<string, Task[]>>({
+    backlog: [
+      {
+        id: '1',
+        title: 'Add authentication',
+        priority: 'high',
+        assignee: 'John Doe',
+        assigneeAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
+        dueDate: 'Jan 10, 2025',
+      },
+      {
+        id: '2',
+        title: 'Create API endpoints',
+        priority: 'medium',
+        assignee: 'Jane Smith',
+        assigneeAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
+        dueDate: 'Jan 15, 2025',
+      },
+      {
+        id: '3',
+        title: 'Write documentation',
+        priority: 'low',
+        assignee: 'Bob Johnson',
+        assigneeAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
+        dueDate: 'Jan 20, 2025',
+      },
+    ],
+    inProgress: [
+      {
+        id: '4',
+        title: 'Design system updates',
+        priority: 'high',
+        assignee: 'Alice Brown',
+        assigneeAvatar: 'https://randomuser.me/api/portraits/women/4.jpg',
+        dueDate: 'Aug 25, 2025',
+      },
+      {
+        id: '5',
+        title: 'Implement dark mode',
+        priority: 'medium',
+        assignee: 'Charlie Wilson',
+        assigneeAvatar: 'https://randomuser.me/api/portraits/men/5.jpg',
+        dueDate: 'Aug 25, 2025',
+      },
+    ],
+    done: [
+      {
+        id: '7',
+        title: 'Setup project',
+        priority: 'high',
+        assignee: 'Eve Davis',
+        assigneeAvatar: 'https://randomuser.me/api/portraits/women/6.jpg',
+        dueDate: 'Sep 25, 2025',
+      },
+      {
+        id: '8',
+        title: 'Initial commit',
+        priority: 'low',
+        assignee: 'Frank White',
+        assigneeAvatar: 'https://randomuser.me/api/portraits/men/7.jpg',
+        dueDate: 'Sep 20, 2025',
+      },
+    ],
+  });
+
+  return (
+    <div className="p-5">
+      <Kanban value={columns} onValueChange={setColumns} getItemValue={(item) => item.id}>
+        <KanbanBoard className="grid grid-cols-3 gap-5">
+          {Object.entries(columns).map(([columnValue, tasks]) => (
+            <TaskColumn key={columnValue} value={columnValue} tasks={tasks} />
+          ))}
+        </KanbanBoard>
+        <KanbanOverlay>
+          <div className="rounded-md bg-muted/60 size-full" />
+        </KanbanOverlay>
+      </Kanban>
+    </div>
+  );
+}
+
+```
+
+Copy-paste these files for dependencies:
+```tsx
+sean0205/avatar
+'use client';
+
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+import { cva, VariantProps } from 'class-variance-authority';
+import { Avatar as AvatarPrimitive } from 'radix-ui';
+
+const avatarStatusVariants = cva('flex items-center rounded-full size-2 border-2 border-background', {
+  variants: {
+    variant: {
+      online: 'bg-green-600',
+      offline: 'bg-zinc-600 dark:bg-zinc-300',
+      busy: 'bg-yellow-600',
+      away: 'bg-blue-600',
+    },
+  },
+  defaultVariants: {
+    variant: 'online',
+  },
+});
+
+function Avatar({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+  return (
+    <AvatarPrimitive.Root data-slot="avatar" className={cn('relative flex shrink-0 size-10', className)} {...props} />
+  );
+}
+
+function AvatarImage({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+  return (
+    <div className={cn('relative overflow-hidden rounded-full', className)}>
+      <AvatarPrimitive.Image data-slot="avatar-image" className={cn('aspect-square h-full w-full')} {...props} />
+    </div>
+  );
+}
+
+function AvatarFallback({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  return (
+    <AvatarPrimitive.Fallback
+      data-slot="avatar-fallback"
+      className={cn(
+        'flex h-full w-full items-center justify-center rounded-full border border-border bg-accent text-accent-foreground text-xs',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function AvatarIndicator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      data-slot="avatar-indicator"
+      className={cn('absolute flex size-6 items-center justify-center', className)}
+      {...props}
+    />
+  );
+}
+
+function AvatarStatus({
+  className,
+  variant,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof avatarStatusVariants>) {
+  return <div data-slot="avatar-status" className={cn(avatarStatusVariants({ variant }), className)} {...props} />;
+}
+
+export { Avatar, AvatarFallback, AvatarImage, AvatarIndicator, AvatarStatus, avatarStatusVariants };
+
+
+```
+```tsx
+sean0205/button-1
+import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { ChevronDown, LucideIcon } from 'lucide-react';
+import { Slot as SlotPrimitive } from 'radix-ui';
+import { cn } from '@/lib/utils';
+
+const buttonVariants = cva(
+  'cursor-pointer group whitespace-nowrap focus-visible:outline-hidden inline-flex items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap text-sm font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&_svg]:shrink-0',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-primary text-primary-foreground hover:bg-primary/90 data-[state=open]:bg-primary/90',
+        mono: 'bg-zinc-950 text-white dark:bg-zinc-300 dark:text-black hover:bg-zinc-950/90 dark:hover:bg-zinc-300/90 data-[state=open]:bg-zinc-950/90 dark:data-[state=open]:bg-zinc-300/90',
+        destructive:
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90 data-[state=open]:bg-destructive/90',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90 data-[state=open]:bg-secondary/90',
+        outline: 'bg-background text-accent-foreground border border-input hover:bg-accent data-[state=open]:bg-accent',
+        dashed:
+          'text-accent-foreground border border-input border-dashed bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:text-accent-foreground',
+        ghost:
+          'text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
+        dim: 'text-muted-foreground hover:text-foreground data-[state=open]:text-foreground',
+        foreground: '',
+        inverse: '',
+      },
+      appearance: {
+        default: '',
+        ghost: '',
+      },
+      underline: {
+        solid: '',
+        dashed: '',
+      },
+      underlined: {
+        solid: '',
+        dashed: '',
+      },
+      size: {
+        lg: 'h-10 rounded-md px-4 text-sm gap-1.5 [&_svg:not([class*=size-])]:size-4',
+        md: 'h-8.5 rounded-md px-3 gap-1.5 text-[0.8125rem] leading-(--text-sm--line-height) [&_svg:not([class*=size-])]:size-4',
+        sm: 'h-7 rounded-md px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5',
+        icon: 'size-8.5 rounded-md [&_svg:not([class*=size-])]:size-4 shrink-0',
+      },
+      autoHeight: {
+        true: '',
+        false: '',
+      },
+      shape: {
+        default: '',
+        circle: 'rounded-full',
+      },
+      mode: {
+        default: 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        icon: 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        link: 'text-primary h-auto p-0 bg-transparent rounded-none hover:bg-transparent data-[state=open]:bg-transparent',
+        input: `
+            justify-start font-normal hover:bg-background [&_svg]:transition-colors [&_svg]:hover:text-foreground data-[state=open]:bg-background 
+            focus-visible:border-ring focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-ring/30 
+            [[data-state=open]>&]:border-ring [[data-state=open]>&]:outline-hidden [[data-state=open]>&]:ring-[3px] 
+            [[data-state=open]>&]:ring-ring/30 
+            aria-invalid:border-destructive/60 aria-invalid:ring-destructive/10 dark:aria-invalid:border-destructive dark:aria-invalid:ring-destructive/20
+            in-data-[invalid=true]:border-destructive/60 in-data-[invalid=true]:ring-destructive/10  dark:in-data-[invalid=true]:border-destructive dark:in-data-[invalid=true]:ring-destructive/20
+          `,
+      },
+      placeholder: {
+        true: 'text-muted-foreground',
+        false: '',
+      },
+    },
+    compoundVariants: [
+      // Icons opacity for default mode
+      {
+        variant: 'ghost',
+        mode: 'default',
+        className: '[&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60',
+      },
+      {
+        variant: 'outline',
+        mode: 'default',
+        className: '[&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60',
+      },
+      {
+        variant: 'dashed',
+        mode: 'default',
+        className: '[&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60',
+      },
+      {
+        variant: 'secondary',
+        mode: 'default',
+        className: '[&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60',
+      },
+
+      // Icons opacity for default mode
+      {
+        variant: 'outline',
+        mode: 'input',
+        className: '[&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60',
+      },
+      {
+        variant: 'outline',
+        mode: 'icon',
+        className: '[&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60',
+      },
+
+      // Auto height
+      {
+        size: 'md',
+        autoHeight: true,
+        className: 'h-auto min-h-8.5',
+      },
+      {
+        size: 'sm',
+        autoHeight: true,
+        className: 'h-auto min-h-7',
+      },
+      {
+        size: 'lg',
+        autoHeight: true,
+        className: 'h-auto min-h-10',
+      },
+
+      // Shadow support
+      {
+        variant: 'primary',
+        mode: 'default',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'mono',
+        mode: 'default',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'secondary',
+        mode: 'default',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'outline',
+        mode: 'default',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'dashed',
+        mode: 'default',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'destructive',
+        mode: 'default',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+
+      // Shadow support
+      {
+        variant: 'primary',
+        mode: 'icon',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'mono',
+        mode: 'icon',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'secondary',
+        mode: 'icon',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'outline',
+        mode: 'icon',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'dashed',
+        mode: 'icon',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+      {
+        variant: 'destructive',
+        mode: 'icon',
+        appearance: 'default',
+        className: 'shadow-xs shadow-black/5',
+      },
+
+      // Link
+      {
+        variant: 'primary',
+        mode: 'link',
+        underline: 'solid',
+        className:
+          'font-medium text-primary hover:text-primary/90 [&_svg:not([role=img]):not([class*=text-])]:opacity-60 hover:underline hover:underline-offset-4 hover:decoration-solid',
+      },
+      {
+        variant: 'primary',
+        mode: 'link',
+        underline: 'dashed',
+        className:
+          'font-medium text-primary hover:text-primary/90 [&_svg:not([role=img]):not([class*=text-])]:opacity-60 hover:underline hover:underline-offset-4 hover:decoration-dashed decoration-1',
+      },
+      {
+        variant: 'primary',
+        mode: 'link',
+        underlined: 'solid',
+        className:
+          'font-medium text-primary hover:text-primary/90 [&_svg:not([role=img]):not([class*=text-])]:opacity-60 underline underline-offset-4 decoration-solid',
+      },
+      {
+        variant: 'primary',
+        mode: 'link',
+        underlined: 'dashed',
+        className:
+          'font-medium text-primary hover:text-primary/90 [&_svg]:opacity-60 underline underline-offset-4 decoration-dashed decoration-1',
+      },
+
+      {
+        variant: 'inverse',
+        mode: 'link',
+        underline: 'solid',
+        className:
+          'font-medium text-inherit [&_svg:not([role=img]):not([class*=text-])]:opacity-60 hover:underline hover:underline-offset-4 hover:decoration-solid',
+      },
+      {
+        variant: 'inverse',
+        mode: 'link',
+        underline: 'dashed',
+        className:
+          'font-medium text-inherit [&_svg:not([role=img]):not([class*=text-])]:opacity-60 hover:underline hover:underline-offset-4 hover:decoration-dashed decoration-1',
+      },
+      {
+        variant: 'inverse',
+        mode: 'link',
+        underlined: 'solid',
+        className:
+          'font-medium text-inherit [&_svg:not([role=img]):not([class*=text-])]:opacity-60 underline underline-offset-4 decoration-solid',
+      },
+      {
+        variant: 'inverse',
+        mode: 'link',
+        underlined: 'dashed',
+        className:
+          'font-medium text-inherit [&_svg:not([role=img]):not([class*=text-])]:opacity-60 underline underline-offset-4 decoration-dashed decoration-1',
+      },
+
+      {
+        variant: 'foreground',
+        mode: 'link',
+        underline: 'solid',
+        className:
+          'font-medium text-foreground [&_svg:not([role=img]):not([class*=text-])]:opacity-60 hover:underline hover:underline-offset-4 hover:decoration-solid',
+      },
+      {
+        variant: 'foreground',
+        mode: 'link',
+        underline: 'dashed',
+        className:
+          'font-medium text-foreground [&_svg:not([role=img]):not([class*=text-])]:opacity-60 hover:underline hover:underline-offset-4 hover:decoration-dashed decoration-1',
+      },
+      {
+        variant: 'foreground',
+        mode: 'link',
+        underlined: 'solid',
+        className:
+          'font-medium text-foreground [&_svg:not([role=img]):not([class*=text-])]:opacity-60 underline underline-offset-4 decoration-solid',
+      },
+      {
+        variant: 'foreground',
+        mode: 'link',
+        underlined: 'dashed',
+        className:
+          'font-medium text-foreground [&_svg:not([role=img]):not([class*=text-])]:opacity-60 underline underline-offset-4 decoration-dashed decoration-1',
+      },
+
+      // Ghost
+      {
+        variant: 'primary',
+        appearance: 'ghost',
+        className: 'bg-transparent text-primary/90 hover:bg-primary/5 data-[state=open]:bg-primary/5',
+      },
+      {
+        variant: 'destructive',
+        appearance: 'ghost',
+        className: 'bg-transparent text-destructive/90 hover:bg-destructive/5 data-[state=open]:bg-destructive/5',
+      },
+      {
+        variant: 'ghost',
+        mode: 'icon',
+        className: 'text-muted-foreground',
+      },
+
+      // Size
+      {
+        size: 'sm',
+        mode: 'icon',
+        className: 'w-7 h-7 p-0 [[&_svg:not([class*=size-])]:size-3.5',
+      },
+      {
+        size: 'md',
+        mode: 'icon',
+        className: 'w-8.5 h-8.5 p-0 [&_svg:not([class*=size-])]:size-4',
+      },
+      {
+        size: 'icon',
+        className: 'w-8.5 h-8.5 p-0 [&_svg:not([class*=size-])]:size-4',
+      },
+      {
+        size: 'lg',
+        mode: 'icon',
+        className: 'w-10 h-10 p-0 [&_svg:not([class*=size-])]:size-4',
+      },
+
+      // Input mode
+      {
+        mode: 'input',
+        placeholder: true,
+        variant: 'outline',
+        className: 'font-normal text-muted-foreground',
+      },
+      {
+        mode: 'input',
+        variant: 'outline',
+        size: 'sm',
+        className: 'gap-1.25',
+      },
+      {
+        mode: 'input',
+        variant: 'outline',
+        size: 'md',
+        className: 'gap-1.5',
+      },
+      {
+        mode: 'input',
+        variant: 'outline',
+        size: 'lg',
+        className: 'gap-1.5',
+      },
+    ],
+    defaultVariants: {
+      variant: 'primary',
+      mode: 'default',
+      size: 'md',
+      shape: 'default',
+      appearance: 'default',
+    },
+  },
+);
+
+function Button({
+  className,
+  selected,
+  variant,
+  shape,
+  appearance,
+  mode,
+  size,
+  autoHeight,
+  underlined,
+  underline,
+  asChild = false,
+  placeholder = false,
+  ...props
+}: React.ComponentProps<'button'> &
+  VariantProps<typeof buttonVariants> & {
+    selected?: boolean;
+    asChild?: boolean;
+  }) {
+  const Comp = asChild ? SlotPrimitive.Slot : 'button';
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(
+        buttonVariants({
+          variant,
+          size,
+          shape,
+          appearance,
+          mode,
+          autoHeight,
+          placeholder,
+          underlined,
+          underline,
+          className,
+        }),
+        asChild && props.disabled && 'pointer-events-none opacity-50',
+      )}
+      {...(selected && { 'data-state': 'open' })}
+      {...props}
+    />
+  );
+}
+
+interface ButtonArrowProps extends React.SVGProps<SVGSVGElement> {
+  icon?: LucideIcon; // Allows passing any Lucide icon
+}
+
+function ButtonArrow({ icon: Icon = ChevronDown, className, ...props }: ButtonArrowProps) {
+  return <Icon data-slot="button-arrow" className={cn('ms-auto -me-1', className)} {...props} />;
+}
+
+export { Button, ButtonArrow, buttonVariants };
+
+```
+```tsx
+sean0205/badge-2
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { Slot as SlotPrimitive } from 'radix-ui';
+
+export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {
+  asChild?: boolean;
+  dotClassName?: string;
+  disabled?: boolean;
+}
+
+export interface BadgeButtonProps
+  extends React.ButtonHTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeButtonVariants> {
+  asChild?: boolean;
+}
+
+export type BadgeDotProps = React.HTMLAttributes<HTMLSpanElement>;
+
+const badgeVariants = cva(
+  'inline-flex items-center justify-center border border-transparent font-medium focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg]:-ms-px [&_svg]:shrink-0',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-primary text-primary-foreground',
+        secondary: 'bg-secondary text-secondary-foreground',
+        success:
+          'bg-[var(--color-success-accent,var(--color-green-500))] text-[var(--color-success-foreground,var(--color-white))]',
+        warning:
+          'bg-[var(--color-warning-accent,var(--color-yellow-500))] text-[var(--color-warning-foreground,var(--color-white))]',
+        info: 'bg-[var(--color-info-accent,var(--color-violet-500))] text-[var(--color-info-foreground,var(--color-white))]',
+        outline: 'bg-transparent border border-border text-secondary-foreground',
+        destructive: 'bg-destructive text-destructive-foreground',
+      },
+      appearance: {
+        default: '',
+        light: '',
+        outline: '',
+        ghost: 'border-transparent bg-transparent',
+      },
+      disabled: {
+        true: 'opacity-50 pointer-events-none',
+      },
+      size: {
+        lg: 'rounded-md px-[0.5rem] h-7 min-w-7 gap-1.5 text-xs [&_svg]:size-3.5',
+        md: 'rounded-md px-[0.45rem] h-6 min-w-6 gap-1.5 text-xs [&_svg]:size-3.5 ',
+        sm: 'rounded-sm px-[0.325rem] h-5 min-w-5 gap-1 text-[0.6875rem] leading-[0.75rem] [&_svg]:size-3',
+        xs: 'rounded-sm px-[0.25rem] h-4 min-w-4 gap-1 text-[0.625rem] leading-[0.5rem] [&_svg]:size-3',
+      },
+      shape: {
+        default: '',
+        circle: 'rounded-full',
+      },
+    },
+    compoundVariants: [
+      /* Light */
+      {
+        variant: 'primary',
+        appearance: 'light',
+        className:
+          'text-[var(--color-primary-accent,var(--color-blue-700))] bg-[var(--color-primary-soft,var(--color-blue-50))] dark:bg-[var(--color-primary-soft,var(--color-blue-950))] dark:text-[var(--color-primary-soft,var(--color-blue-600))]',
+      },
+      {
+        variant: 'secondary',
+        appearance: 'light',
+        className: 'bg-secondary dark:bg-secondary/50 text-secondary-foreground',
+      },
+      {
+        variant: 'success',
+        appearance: 'light',
+        className:
+          'text-[var(--color-success-accent,var(--color-green-800))] bg-[var(--color-success-soft,var(--color-green-100))] dark:bg-[var(--color-success-soft,var(--color-green-950))] dark:text-[var(--color-success-soft,var(--color-green-600))]',
+      },
+      {
+        variant: 'warning',
+        appearance: 'light',
+        className:
+          'text-[var(--color-warning-accent,var(--color-yellow-700))] bg-[var(--color-warning-soft,var(--color-yellow-100))] dark:bg-[var(--color-warning-soft,var(--color-yellow-950))] dark:text-[var(--color-warning-soft,var(--color-yellow-600))]',
+      },
+      {
+        variant: 'info',
+        appearance: 'light',
+        className:
+          'text-[var(--color-info-accent,var(--color-violet-700))] bg-[var(--color-info-soft,var(--color-violet-100))] dark:bg-[var(--color-info-soft,var(--color-violet-950))] dark:text-[var(--color-info-soft,var(--color-violet-400))]',
+      },
+      {
+        variant: 'destructive',
+        appearance: 'light',
+        className:
+          'text-[var(--color-destructive-accent,var(--color-red-700))] bg-[var(--color-destructive-soft,var(--color-red-50))] dark:bg-[var(--color-destructive-soft,var(--color-red-950))] dark:text-[var(--color-destructive-soft,var(--color-red-600))]',
+      },
+      /* Outline */
+      {
+        variant: 'primary',
+        appearance: 'outline',
+        className:
+          'text-[var(--color-primary-accent,var(--color-blue-700))] border-[var(--color-primary-soft,var(--color-blue-100))] bg-[var(--color-primary-soft,var(--color-blue-50))] dark:bg-[var(--color-primary-soft,var(--color-blue-950))] dark:border-[var(--color-primary-soft,var(--color-blue-900))] dark:text-[var(--color-primary-soft,var(--color-blue-600))]',
+      },
+      {
+        variant: 'success',
+        appearance: 'outline',
+        className:
+          'text-[var(--color-success-accent,var(--color-green-700))] border-[var(--color-success-soft,var(--color-green-200))] bg-[var(--color-success-soft,var(--color-green-50))] dark:bg-[var(--color-success-soft,var(--color-green-950))] dark:border-[var(--color-success-soft,var(--color-green-900))] dark:text-[var(--color-success-soft,var(--color-green-600))]',
+      },
+      {
+        variant: 'warning',
+        appearance: 'outline',
+        className:
+          'text-[var(--color-warning-accent,var(--color-yellow-700))] border-[var(--color-warning-soft,var(--color-yellow-200))] bg-[var(--color-warning-soft,var(--color-yellow-50))] dark:bg-[var(--color-warning-soft,var(--color-yellow-950))] dark:border-[var(--color-warning-soft,var(--color-yellow-900))] dark:text-[var(--color-warning-soft,var(--color-yellow-600))]',
+      },
+      {
+        variant: 'info',
+        appearance: 'outline',
+        className:
+          'text-[var(--color-info-accent,var(--color-violet-700))] border-[var(--color-info-soft,var(--color-violet-100))] bg-[var(--color-info-soft,var(--color-violet-50))] dark:bg-[var(--color-info-soft,var(--color-violet-950))] dark:border-[var(--color-info-soft,var(--color-violet-900))] dark:text-[var(--color-info-soft,var(--color-violet-400))]',
+      },
+      {
+        variant: 'destructive',
+        appearance: 'outline',
+        className:
+          'text-[var(--color-destructive-accent,var(--color-red-700))] border-[var(--color-destructive-soft,var(--color-red-100))] bg-[var(--color-destructive-soft,var(--color-red-50))] dark:bg-[var(--color-destructive-soft,var(--color-red-950))] dark:border-[var(--color-destructive-soft,var(--color-red-900))] dark:text-[var(--color-destructive-soft,var(--color-red-600))]',
+      },
+      /* Ghost */
+      {
+        variant: 'primary',
+        appearance: 'ghost',
+        className: 'text-primary',
+      },
+      {
+        variant: 'secondary',
+        appearance: 'ghost',
+        className: 'text-secondary-foreground',
+      },
+      {
+        variant: 'success',
+        appearance: 'ghost',
+        className: 'text-[var(--color-success-accent,var(--color-green-500))]',
+      },
+      {
+        variant: 'warning',
+        appearance: 'ghost',
+        className: 'text-[var(--color-warning-accent,var(--color-yellow-500))]',
+      },
+      {
+        variant: 'info',
+        appearance: 'ghost',
+        className: 'text-[var(--color-info-accent,var(--color-violet-500))]',
+      },
+      {
+        variant: 'destructive',
+        appearance: 'ghost',
+        className: 'text-destructive',
+      },
+
+      { size: 'lg', appearance: 'ghost', className: 'px-0' },
+      { size: 'md', appearance: 'ghost', className: 'px-0' },
+      { size: 'sm', appearance: 'ghost', className: 'px-0' },
+      { size: 'xs', appearance: 'ghost', className: 'px-0' },
+    ],
+    defaultVariants: {
+      variant: 'primary',
+      appearance: 'default',
+      size: 'md',
+    },
+  },
+);
+
+const badgeButtonVariants = cva(
+  'cursor-pointer transition-all inline-flex items-center justify-center leading-none size-3.5 [&>svg]:opacity-100! [&>svg]:size-3.5 p-0 rounded-md -me-0.5 opacity-60 hover:opacity-100',
+  {
+    variants: {
+      variant: {
+        default: '',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+    },
+  },
+);
+
+function Badge({
+  className,
+  variant,
+  size,
+  appearance,
+  shape,
+  asChild = false,
+  disabled,
+  ...props
+}: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? SlotPrimitive.Slot : 'span';
+
+  return (
+    <Comp
+      data-slot="badge"
+      className={cn(badgeVariants({ variant, size, appearance, shape, disabled }), className)}
+      {...props}
+    />
+  );
+}
+
+function BadgeButton({
+  className,
+  variant,
+  asChild = false,
+  ...props
+}: React.ComponentProps<'button'> & VariantProps<typeof badgeButtonVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? SlotPrimitive.Slot : 'span';
+  return (
+    <Comp
+      data-slot="badge-button"
+      className={cn(badgeButtonVariants({ variant, className }))}
+      role="button"
+      {...props}
+    />
+  );
+}
+
+function BadgeDot({ className, ...props }: React.ComponentProps<'span'>) {
+  return (
+    <span
+      data-slot="badge-dot"
+      className={cn('size-1.5 rounded-full bg-[currentColor] opacity-75', className)}
+      {...props}
+    />
+  );
+}
+
+export { Badge, BadgeButton, BadgeDot, badgeVariants };
+
+```
+
+Install these NPM dependencies:
+```bash
+@dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @radix-ui/react-slot, radix-ui, class-variance-authority, lucide-react
+```
+
+Extend existing Tailwind 4 index.css with this code (or if project uses Tailwind 3, extend tailwind.config.js or globals.css):
+```css
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-color-destructive-foreground: var(----color-destructive-foreground);
+}
+
+:root {
+  --destructive-foreground: oklch(1 0 0);
+}
+
+.dark {
+  --destructive-foreground: oklch(1 0 0);
+}
+
+```
