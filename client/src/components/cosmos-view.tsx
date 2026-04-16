@@ -6,10 +6,11 @@ import type { PlanetData, GravityMode } from "@/lib/cosmos";
 import type { JobItem, JobColumns } from "@/lib/job-types";
 
 const GRAVITY_CHIPS: { label: string; value: GravityMode }[] = [
-  { label: "Best Match", value: "match" },
-  { label: "Highest Pay", value: "salary" },
-  { label: "Most Recent", value: "recent" },
-  { label: "Remote Only", value: "remote" },
+  { label: "Overall", value: "overall" },
+  { label: "Skills Match", value: "skills" },
+  { label: "Culture", value: "culture" },
+  { label: "Growth", value: "growth" },
+  { label: "Stage", value: "stage" },
 ];
 
 interface Props {
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export default function CosmosView({ columns, onSelectJob }: Props) {
-  const [gravityMode, setGravityMode] = useState<GravityMode>("match");
+  const [gravityMode, setGravityMode] = useState<GravityMode>("overall");
   const [hoveredPlanet, setHoveredPlanet] = useState<PlanetData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);

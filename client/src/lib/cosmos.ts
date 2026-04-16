@@ -1,59 +1,78 @@
 import type { JobItem, JobColumns } from "./job-types";
 
-export type GravityMode = "match" | "salary" | "recent" | "remote";
+export type GravityMode = "overall" | "skills" | "culture" | "growth" | "stage";
 
 export interface PlanetData {
   job: JobItem;
-  distance: number; // 0-1, lower = closer to You
-  size: number;     // px radius
-  angle: number;    // degrees
+  distance: number;
+  size: number;
+  angle: number;
   x: number;
   y: number;
   color: string;
 }
 
 const COLORS = [
-  "#818cf8", // indigo
-  "#a78bfa", // violet
-  "#f472b6", // pink
-  "#fb923c", // orange
-  "#34d399", // emerald
-  "#38bdf8", // sky
-  "#fbbf24", // amber
-  "#f87171", // red
+  "#818cf8", "#a78bfa", "#f472b6", "#fb923c",
+  "#34d399", "#38bdf8", "#fbbf24", "#f87171",
 ];
 
-function parseSalaryMid(salary: string): number {
-  const nums = salary.match(/\d[\d,]*/g);
-  if (!nums || nums.length === 0) return 0;
-  const parsed = nums.map((n) => parseInt(n.replace(/,/g, ""), 10));
-  return parsed.reduce((a, b) => a + b, 0) / parsed.length;
+// Skills-related keywords — more matches = higher gravity
+const SKILL_KEYWORDS = [
+  "figma", "design system", "prototyp", "user research", "ux", "ui",
+  "component", "accessibility", "responsive", "mobile", "web app",
+  "wireframe", "interaction", "visual design", "usability",
+];
+
+// Culture signals — remote-friendly, collaborative, creative
+const CULTURE_SIGNALS = [
+  "remote", "flexible", "async", "collaborative", "inclusive",
+  "diverse", "culture", "team", "autonomy", "trust", "creative",
+  "work-life", "balance", "transparent", "open",
+];
+
+// Growth signals — leadership, senior, impact, scale
+const GROWTH_SIGNALS = [
+  "lead", "senior", "staff", "principal", "director", "head",
+  "mentor", "impact", "scale", "strategy", "vision", "own",
+  "shape", "define", "grow", "opportunity",
+];
+
+function keywordScore(text: string, keywords: string[]): number {
+  const lower = text.toLowerCase();
+  let hits = 0;
+  for (const kw of keywords) {
+    if (lower.includes(kw)) hits++;
+  }
+  return Math.min(1, hits / (keywords.length * 0.35));
 }
 
-function daysAgo(posted: string): number {
-  const m = posted.match(/(\d+)/);
-  if (!m) return 30;
-  const n = parseInt(m[1], 10);
-  if (posted.includes("w")) return n * 7;
-  if (posted.includes("mo")) return n * 30;
-  return n;
+function stageScore(job: JobItem): number {
+  const desc = (job.description + " " + job.title + " " + (job.tags?.join(" ") || "")).toLowerCase();
+  // Startup signals
+  const startupHits = ["startup", "seed", "series a", "early stage", "founding", "small team", "fast-paced", "0 to 1", "zero to one"].filter((s) => desc.includes(s)).length;
+  // Enterprise signals
+  const entHits = ["enterprise", "fortune", "large scale", "millions of users", "global", "platform", "infrastructure"].filter((s) => desc.includes(s)).length;
+
+  if (startupHits > entHits) return 0.85 + startupHits * 0.03;
+  if (entHits > startupHits) return 0.6 + entHits * 0.05;
+  return 0.5;
 }
 
 export function computeGravity(job: JobItem, mode: GravityMode): number {
+  const desc = job.description + " " + job.title + " " + (job.tags?.join(" ") || "");
+
   switch (mode) {
-    case "match":
+    case "overall":
       return job.matchScore / 100;
-    case "salary": {
-      const mid = parseSalaryMid(job.salary || "");
-      if (mid === 0) return 0.3;
-      return Math.min(1, mid / 250000);
-    }
-    case "recent": {
-      const d = daysAgo(job.postedDate || "30d");
-      return Math.max(0.1, 1 - d / 60);
-    }
-    case "remote":
-      return job.type === "Remote" || job.location?.toLowerCase().includes("remote") ? 0.95 : 0.3;
+    case "skills":
+      return Math.max(0.2, keywordScore(desc, SKILL_KEYWORDS) * 0.6 + (job.matchScore / 100) * 0.4);
+    case "culture":
+      return Math.max(0.15, keywordScore(desc, CULTURE_SIGNALS) * 0.7 + (job.matchScore / 100) * 0.3);
+    case "growth":
+      return Math.max(0.15, keywordScore(desc, GROWTH_SIGNALS) * 0.7 + (job.matchScore / 100) * 0.3);
+    case "stage":
+      return Math.max(0.15, stageScore(job));
     default:
       return job.matchScore / 100;
   }
@@ -71,24 +90,18 @@ export function layoutPlanets(
 
   return jobs.map((job, i) => {
     const gravity = computeGravity(job, mode);
-    // Higher gravity = closer to center
     const distance = 1 - gravity;
     const r = 0.15 * maxRadius + distance * 0.85 * maxRadius;
 
-    // Distribute angles evenly with slight randomness
     const baseAngle = (360 / jobs.length) * i;
     const jitter = ((i * 37 + 13) % 30) - 15;
     const angle = baseAngle + jitter;
     const rad = (angle * Math.PI) / 180;
 
-    // Size based on matchScore
     const size = 12 + (job.matchScore / 100) * 18;
 
     return {
-      job,
-      distance,
-      size,
-      angle,
+      job, distance, size, angle,
       x: cx + Math.cos(rad) * r,
       y: cy + Math.sin(rad) * r,
       color: COLORS[i % COLORS.length],
