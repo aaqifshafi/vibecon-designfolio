@@ -168,21 +168,6 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
   return (
     <div className="min-h-screen bg-[#F0EDE7] dark:bg-[#1A1A1A] flex items-center justify-center font-['Inter'] text-[#1A1A1A] dark:text-[#F0EDE7] transition-colors duration-500 px-4">
       <div className="w-full max-w-[520px]">
-        {/* Progress dots */}
-        {screen > 0 && (
-          <div className="flex items-center justify-center gap-2 mb-8">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className={cn(
-                  "h-1.5 rounded-full transition-all duration-300",
-                  i <= screen ? "w-8 bg-[#1A1A1A] dark:bg-[#F0EDE7]" : "w-1.5 bg-black/10 dark:bg-white/10"
-                )}
-              />
-            ))}
-          </div>
-        )}
-
         <AnimatePresence mode="wait" custom={direction}>
           {/* Screen 0 — Intro */}
           {screen === 0 && (
@@ -231,13 +216,21 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
               transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
               data-testid="stepper-screen-1"
             >
-              <h2 className="text-[22px] font-bold tracking-tight mb-6">
+              <motion.h2
+                initial={{ opacity: 0, filter: "blur(8px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.4, delay: 0.05 }}
+                className="text-[22px] font-bold tracking-tight mb-6"
+              >
                 What level are you targeting?
-              </h2>
+              </motion.h2>
               <div className="flex flex-col gap-3 mb-8">
-                {LEVEL_OPTIONS.map((opt) => (
-                  <button
+                {LEVEL_OPTIONS.map((opt, idx) => (
+                  <motion.button
                     key={opt.label}
+                    initial={{ opacity: 0, filter: "blur(8px)" }}
+                    animate={{ opacity: 1, filter: "blur(0px)" }}
+                    transition={{ duration: 0.35, delay: 0.12 + idx * 0.07 }}
                     onClick={() => { setLevel(opt.label); setLevelApi(opt.api); }}
                     data-testid={`level-${opt.label.toLowerCase().replace(/\s+/g, "-")}`}
                     className={cn(
@@ -258,10 +251,15 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
                         </div>
                       )}
                     </div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
-              <div className="flex justify-between">
+              <motion.div
+                initial={{ opacity: 0, filter: "blur(6px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.35, delay: 0.45 }}
+                className="flex justify-between"
+              >
                 <Button variant="outline" onClick={goBack} className="rounded-full h-10 px-5 text-[13px] font-medium border-black/10 dark:border-white/10">
                   <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back
                 </Button>
@@ -272,7 +270,7 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
                 >
                   Continue <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                 </Button>
-              </div>
+              </motion.div>
             </motion.div>
           )}
 
@@ -288,13 +286,21 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
               transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
               data-testid="stepper-screen-2"
             >
-              <h2 className="text-[22px] font-bold tracking-tight mb-6">
+              <motion.h2
+                initial={{ opacity: 0, filter: "blur(8px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.4, delay: 0.05 }}
+                className="text-[22px] font-bold tracking-tight mb-6"
+              >
                 Where are you open to working?
-              </h2>
+              </motion.h2>
               <div className="flex flex-col gap-3 mb-5">
-                {LOCATION_OPTIONS.map((opt) => (
-                  <button
+                {LOCATION_OPTIONS.map((opt, idx) => (
+                  <motion.button
                     key={opt.value}
+                    initial={{ opacity: 0, filter: "blur(8px)" }}
+                    animate={{ opacity: 1, filter: "blur(0px)" }}
+                    transition={{ duration: 0.35, delay: 0.12 + idx * 0.07 }}
                     onClick={() => {
                       setLocationType(opt.value);
                       if (opt.value === "my-city" && defaultLocation && !locationInput) setLocationInput(defaultLocation);
@@ -315,7 +321,7 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
                         </div>
                       )}
                     </div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
 
@@ -367,7 +373,12 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
                 )}
               </AnimatePresence>
 
-              <div className="flex justify-between mt-3">
+              <motion.div
+                initial={{ opacity: 0, filter: "blur(6px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.35, delay: 0.4 }}
+                className="flex justify-between mt-3"
+              >
                 <Button variant="outline" onClick={goBack} className="rounded-full h-10 px-5 text-[13px] font-medium border-black/10 dark:border-white/10">
                   <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back
                 </Button>
@@ -378,7 +389,7 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
                 >
                   Continue <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                 </Button>
-              </div>
+              </motion.div>
             </motion.div>
           )}
 
@@ -394,10 +405,20 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
               transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
               data-testid="stepper-screen-3"
             >
-              <h2 className="text-[22px] font-bold tracking-tight mb-6">
+              <motion.h2
+                initial={{ opacity: 0, filter: "blur(8px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.4, delay: 0.05 }}
+                className="text-[22px] font-bold tracking-tight mb-6"
+              >
                 What role are you looking for next?
-              </h2>
-              <div className="relative mb-4">
+              </motion.h2>
+              <motion.div
+                initial={{ opacity: 0, filter: "blur(8px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.35, delay: 0.12 }}
+                className="relative mb-4"
+              >
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7A736C] dark:text-[#9E9893]" />
                 <Input
                   value={role}
@@ -406,11 +427,14 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
                   data-testid="role-input"
                   className="h-12 pl-10 bg-black/[0.03] dark:bg-white/[0.03] border-black/10 dark:border-white/10 rounded-xl text-[15px] font-medium focus-visible:ring-2 focus-visible:ring-black/10 dark:focus-visible:ring-white/10 shadow-none"
                 />
-              </div>
+              </motion.div>
               <div className="flex flex-wrap gap-2 mb-8">
-                {ROLE_CHIPS.map((chip) => (
-                  <button
+                {ROLE_CHIPS.map((chip, idx) => (
+                  <motion.button
                     key={chip}
+                    initial={{ opacity: 0, filter: "blur(8px)" }}
+                    animate={{ opacity: 1, filter: "blur(0px)" }}
+                    transition={{ duration: 0.3, delay: 0.2 + idx * 0.05 }}
                     onClick={() => setRole(chip)}
                     data-testid={`chip-${chip.toLowerCase().replace(/\s+/g, "-")}`}
                     className={cn(
@@ -421,10 +445,15 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
                     )}
                   >
                     {chip}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
-              <div className="flex justify-between">
+              <motion.div
+                initial={{ opacity: 0, filter: "blur(6px)" }}
+                animate={{ opacity: 1, filter: "blur(0px)" }}
+                transition={{ duration: 0.35, delay: 0.5 }}
+                className="flex justify-between"
+              >
                 <Button variant="outline" onClick={goBack} className="rounded-full h-10 px-5 text-[13px] font-medium border-black/10 dark:border-white/10">
                   <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back
                 </Button>
@@ -436,10 +465,25 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
                 >
                   Find my matches <Sparkles className="w-3.5 h-3.5 ml-1.5" />
                 </Button>
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Progress dots — bottom */}
+        {screen > 0 && (
+          <div className="flex items-center justify-center gap-2 mt-10">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={cn(
+                  "h-1.5 rounded-full transition-all duration-300",
+                  i <= screen ? "w-8 bg-[#1A1A1A] dark:bg-[#F0EDE7]" : "w-1.5 bg-black/10 dark:bg-white/10"
+                )}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
