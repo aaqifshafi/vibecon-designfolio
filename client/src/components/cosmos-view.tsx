@@ -5,6 +5,13 @@ import { layoutPlanets, getAllJobs } from "@/lib/cosmos";
 import type { PlanetData, GravityMode } from "@/lib/cosmos";
 import type { JobItem, JobColumns } from "@/lib/job-types";
 
+const AVATAR_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 const GRAVITY_CHIPS: { label: string; value: GravityMode }[] = [
   { label: "Overall", value: "overall" },
   { label: "Skills Match", value: "skills" },
@@ -57,7 +64,7 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
       className="relative overflow-hidden"
       style={{
         height: "calc(100vh - 64px)",
-        background: "radial-gradient(ellipse at center, #0d0d1a 0%, #050508 100%)",
+        background: "radial-gradient(ellipse at center, #1e1c1a 0%, #121110 100%)",
       }}
       data-testid="cosmos-view"
     >
@@ -120,9 +127,9 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
                 background: `radial-gradient(circle, ${p.color}${isHovered ? "30" : "12"} 0%, transparent 70%)`,
               }}
             />
-            {/* Planet body */}
+            {/* Planet body with logo/avatar */}
             <div
-              className="relative rounded-full transition-transform duration-200"
+              className="relative rounded-full transition-transform duration-200 flex items-center justify-center overflow-hidden"
               style={{
                 width: p.size,
                 height: p.size,
@@ -132,7 +139,26 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
                   : `0 0 ${p.size * 0.4}px ${p.color}25, inset 0 -3px 6px rgba(0,0,0,0.3)`,
                 transform: isHovered ? "scale(1.25)" : "scale(1)",
               }}
-            />
+            >
+              {p.job.employerLogo ? (
+                <img
+                  src={p.job.employerLogo}
+                  alt={p.job.company}
+                  className="rounded-full object-contain"
+                  style={{ width: p.size * 0.55, height: p.size * 0.55, padding: 1 }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden"); }}
+                />
+              ) : null}
+              <span
+                className={cn(
+                  "font-bold text-white/90 select-none leading-none",
+                  p.job.employerLogo && "hidden"
+                )}
+                style={{ fontSize: Math.max(p.size * 0.35, 10) }}
+              >
+                {p.job.company.charAt(0).toUpperCase()}
+              </span>
+            </div>
             {/* Company label */}
             <span className={cn(
               "absolute left-1/2 -translate-x-1/2 text-[10px] font-medium whitespace-nowrap transition-opacity duration-200",
