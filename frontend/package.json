@@ -1,0 +1,8 @@
+{
+  "name": "frontend-wrapper",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npx --prefix /app vite dev --port 3000 --host 0.0.0.0 --config /app/vite.config.ts"
+  }
+}
