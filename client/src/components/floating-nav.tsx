@@ -6,7 +6,7 @@ const navItems = [
   {
     icon: LayoutTemplate,
     label: "Portfolio Builder",
-    href: "/",
+    href: "/builder",
   },
   {
     icon: Briefcase,
@@ -47,7 +47,7 @@ export function FloatingNav() {
       {/* Nav items */}
       {navItems.map(({ icon: Icon, label, href }) => {
         const isActive =
-          href === "/" ? location === "/" : location.startsWith(href);
+          href === "/builder" ? location === "/builder" : location.startsWith(href);
         return (
           <Tooltip key={href} delayDuration={200}>
             <TooltipTrigger asChild>

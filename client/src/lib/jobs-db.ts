@@ -1,8 +1,9 @@
-import type { ParsedResume } from "./types";
+import type { JobColumns, JobItem } from "./job-types";
+import { EMPTY_COLUMNS } from "./job-types";
 
 const DB_NAME = "portfolioBuilder";
 const STORE_NAME = "resumeData";
-const DATA_KEY = "current";
+const JOBS_KEY = "jobsData";
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -18,29 +19,24 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function getResumeData(): Promise<ParsedResume | null> {
+export async function getJobsData(): Promise<JobColumns | null> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    const req = store.get(DATA_KEY);
+    const req = store.get(JOBS_KEY);
     req.onsuccess = () => resolve(req.result ?? null);
     req.onerror = () => reject(req.error);
   });
 }
 
-export async function setResumeData(data: ParsedResume): Promise<void> {
+export async function setJobsData(data: JobColumns): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    const req = store.put(data, DATA_KEY);
+    const req = store.put(data, JOBS_KEY);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   });
-}
-
-export async function hasResumeData(): Promise<boolean> {
-  const data = await getResumeData();
-  return data !== null;
 }

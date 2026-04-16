@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Project from "@/pages/project";
+import Jobs from "@/pages/jobs";
 import { ThemeProvider } from "next-themes";
 import { ResumeProvider } from "@/context/ResumeContext";
 
@@ -22,6 +23,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Landing} />
         <Route path="/builder" component={Home} />
+        <Route path="/jobs" component={Jobs} />
         <Route path="/project/:id" component={Project} />
         <Route component={NotFound} />
       </Switch>
