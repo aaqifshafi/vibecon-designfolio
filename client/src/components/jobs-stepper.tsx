@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import type { JobPreferences } from "@/lib/job-preferences-db";
+import OrbitAnimation from "@/components/orbit-animation";
 
 const LEVEL_OPTIONS = [
   { label: "Mid-level", sub: "Growing into ownership \u00b7 2\u20134 years", api: "under_3_years_experience" },
@@ -35,6 +36,17 @@ const ROLE_CHIPS = [
   "UX Researcher",
   "Design Lead",
   "Interaction Designer",
+];
+
+const ORBIT_ITEMS = [
+  { id: 1, name: "Company 1", src: "/companylogo-new/companyradial01.svg" },
+  { id: 2, name: "Company 2", src: "/companylogo-new/companyradial02.svg" },
+  { id: 3, name: "Company 3", src: "/companylogo-new/companyradial03.svg" },
+  { id: 4, name: "Company 4", src: "/companylogo-new/companyradial04.svg" },
+  { id: 5, name: "Company 5", src: "/companylogo-new/companyradial05.svg" },
+  { id: 6, name: "Company 6", src: "/companylogo-new/companyradial06.svg" },
+  { id: 7, name: "Company 7", src: "/companylogo-new/companyradial07.svg" },
+  { id: 8, name: "Company 8", src: "/companylogo-new/companyradial08.svg" },
 ];
 
 interface Props {
@@ -158,26 +170,33 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
               animate="center"
               exit="exit"
               transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-              className="flex flex-col items-center text-center"
+              className="flex flex-col items-center text-center relative"
               data-testid="stepper-screen-0"
             >
-              <div className="w-14 h-14 rounded-2xl bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center mb-6">
-                <Sparkles className="w-7 h-7 text-violet-500" />
+              {/* Orbit animation behind */}
+              <div className="absolute inset-0 flex items-center justify-center -z-0 opacity-[0.18] dark:opacity-[0.12] pointer-events-none" aria-hidden>
+                <OrbitAnimation orbitItems={ORBIT_ITEMS} stageSize={440} imageSize={52} />
               </div>
-              <h1 className="text-[28px] font-bold tracking-tight mb-3 leading-tight">
-                We've found 1,200+ jobs that match your profile
-              </h1>
-              <p className="text-[15px] text-[#7A736C] dark:text-[#B5AFA5] leading-relaxed mb-8 max-w-[420px]" style={{ fontWeight: 450 }}>
-                Now let's find the ones that are worth your time. Answer 3 questions and we'll narrow it down to your best matches.
-              </p>
-              <Button
-                onClick={goNext}
-                className="rounded-full px-8 h-12 text-[15px] font-semibold bg-[#1A1A1A] dark:bg-white text-white dark:text-[#1A1A1A] hover:bg-black/80 dark:hover:bg-white/90 shadow-sm"
-                data-testid="stepper-start-btn"
-              >
-                Let's do it
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-14 h-14 rounded-2xl bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center mb-6">
+                  <Sparkles className="w-7 h-7 text-violet-500" />
+                </div>
+                <h1 className="text-[28px] font-bold tracking-tight mb-3 leading-tight">
+                  We've found 1,200+ jobs that match your profile
+                </h1>
+                <p className="text-[15px] text-[#7A736C] dark:text-[#B5AFA5] leading-relaxed mb-8 max-w-[420px]" style={{ fontWeight: 450 }}>
+                  Now let's find the ones that are worth your time. Answer 3 questions and we'll narrow it down to your best matches.
+                </p>
+                <Button
+                  onClick={goNext}
+                  className="rounded-full px-8 h-12 text-[15px] font-semibold bg-[#1A1A1A] dark:bg-white text-white dark:text-[#1A1A1A] hover:bg-black/80 dark:hover:bg-white/90 shadow-sm"
+                  data-testid="stepper-start-btn"
+                >
+                  Let's do it
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
             </motion.div>
           )}
 

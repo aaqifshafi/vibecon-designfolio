@@ -4,7 +4,7 @@
 Pull code from connected public Git repository, install dependencies, fix build errors, and run the Vite frontend development server locally. Then wire up a Resume-to-Portfolio builder (PDF extraction to Gemini to IndexedDB), build a Kanban Job tracking board populated via RapidAPI JSearch and ranked by Gemini, add a pre-gate Job Onboarding Stepper, integrate Anam.ai for Mock Interviews on job cards, build a context-aware "Ask Scout" AI chat, add an Offer Decision assistant, implement a "COSMOS" 2D constellation job explorer, optimize Gemini ranking logic using embeddings, display company logos and replace match score text with a new visual Gauge component.
 
 ## Architecture
-- **Frontend**: React + Vite + TailwindCSS + Framer Motion + Wouter
+- **Frontend**: React + Vite + TailwindCSS + Framer Motion + motion/react + Wouter
 - **Storage**: IndexedDB (client-side only, no backend)
 - **APIs**: Gemini (ranking/chat/scoring/embeddings), RapidAPI/JSearch (jobs), Anam.ai (video avatars), Nominatim OSM (location)
 - **Keys**: `/app/client/.env.local` (VITE_GEMINI_API_KEY, VITE_RAPIDAPI_KEY, VITE_ANAM_API_KEY)
@@ -21,23 +21,21 @@ Pull code from connected public Git repository, install dependencies, fix build 
 9. "Ask Scout" per-job AI Chat
 10. Offer Decision Assistant (conversational flow for >= 2 offers)
 11. COSMOS Constellation view with gravity filters
-12. Individual embedding/heuristic Gemini ranking (no more 50% clustering)
+12. Individual embedding/heuristic Gemini ranking
 13. JSearch country code resolution from Nominatim
-14. Company logos on JobCard and JobDetailPanel (employer_logo from JSearch)
-15. Gauge component (full 21st.dev/designali-in/gauge-1 registry version)
-16. **Job Card redesign** matching reference UI:
-    - Row 1: Large logo (40px) or colored text avatar (first letter) + Company + Location | 48px Gauge top-right
-    - Row 2: Bold job title (15px, clickable)
-    - Row 3: Meta pills (type + work arrangement + salary) with Briefcase/Monitor icons
-    - Row 4: Action bar (external link + interview + ask scout) separated by border-top
-    - Smart duplicate pill prevention (Remote type + Remote location = single pill)
+14. Company logos on JobCard and JobDetailPanel
+15. Gauge component (full 21st.dev/designali-in/gauge-1 registry)
+16. Job Card redesign: Logo/text-avatar + company + location | 48px gauge | bold title | meta pills | action bar
+17. **Orbit animation** on stepper intro (screen 0) using company logos from `/companylogo-new/` with `motion/react` LayoutGroup + spring physics
 
 ## Key Files
-- `/app/client/src/pages/jobs.tsx` — Kanban board + inline JobCard component (redesigned)
+- `/app/client/src/pages/jobs.tsx` — Kanban board + JobCard
+- `/app/client/src/components/jobs-stepper.tsx` — Stepper with orbit animation on intro
+- `/app/client/src/components/orbit-animation.tsx` — Orbit component (motion/react)
 - `/app/client/src/components/job-detail-panel.tsx` — Slide-out detail panel
-- `/app/client/src/components/ui/gauge-1.tsx` — Full 21st.dev gauge component
+- `/app/client/src/components/ui/gauge-1.tsx` — 21st.dev gauge component
 - `/app/client/src/lib/jsearch.ts` — JSearch API integration
-- `/app/client/src/lib/job-types.ts` — JobItem type (includes employerLogo field)
+- `/app/client/public/companylogo-new/` — Company radial logos (8 SVGs)
 
 ## Backlog
 - No pending tasks from PRDs. All requested features are implemented.
