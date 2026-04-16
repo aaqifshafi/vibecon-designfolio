@@ -80,85 +80,125 @@ Generate diverse jobs: mix of senior/lead roles, different company sizes, some r
 }
 
 
+// ── Individual Job Scoring ──
+
+function buildCandidateContext(resume: ParsedResume): string {
+  const skills = resume.tools?.map((t) => t.name).join(", ") || "Not specified";
+  const experience = resume.experience
+    ?.slice(0, 5)
+    .map((e) => `- ${e.role} at ${e.company} (${e.startDate}${e.endDate ? "–" + e.endDate : "–Present"}): ${e.description}`)
+    .join("\n") || "None";
+  const projects = resume.projects
+    ?.map((p) => `- ${p.title}: ${p.description}`)
+    .join("\n") || "None";
+
+  return `Title: ${resume.title}
+About: ${resume.about || "N/A"}
+Skills: ${skills}
+Experience:
+${experience}
+Projects:
+${projects}`;
+}
+
+async function scoreOneJob(
+  job: JobItem,
+  candidateContext: string
+): Promise<number> {
+  const prompt = `Score how well this job fits this candidate. Return ONLY a single number between 25 and 97. Just the number, nothing else.
+
+CANDIDATE:
+${candidateContext}
+
+JOB:
+Title: ${job.title}
+Company: ${job.company}
+Location: ${job.location} | ${job.type}
+${job.salary ? "Salary: " + job.salary : ""}
+Tags: ${job.tags?.join(", ") || "none"}
+Description: ${job.description.slice(0, 500)}
+
+RUBRIC:
+- Role Alignment (30%): Title and responsibilities match?
+- Skills Match (30%): Skills overlap with candidate?
+- Experience Fit (20%): Seniority level match?
+- Context Fit (10%): Location, industry fit?
+- Growth Fit (10%): Good next career step?
+
+Penalties: Wrong field -15, Low skill overlap -10, Seniority mismatch -5
+Guide: 90+ strong fit, 70-89 good, 50-69 average, <50 poor
+
+Score:`;
+
+  const res = await fetch(GEMINI_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0, maxOutputTokens: 8 },
+    }),
+  });
+
+  if (!res.ok) throw new Error(`API ${res.status}`);
+
+  const data = await res.json();
+  const raw = (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
+  const num = parseInt(raw.replace(/[^0-9]/g, ""), 10);
+
+  if (isNaN(num) || num < 1 || num > 100) throw new Error("bad score");
+  return Math.min(97, Math.max(25, num));
+}
+
+// Process in parallel with concurrency limit
+async function parallelMap<T, R>(
+  items: T[],
+  fn: (item: T) => Promise<R>,
+  fallback: R,
+  concurrency: number
+): Promise<R[]> {
+  const results: R[] = new Array(items.length).fill(fallback);
+  let next = 0;
+
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      try {
+        results[i] = await fn(items[i]);
+      } catch {
+        // Individual failure — only this job gets fallback
+        results[i] = fallback;
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 export async function rankJobsWithGemini(
   jobs: JobItem[],
   resume: ParsedResume
 ): Promise<JobItem[]> {
   if (jobs.length === 0) return jobs;
 
-  const skills = resume.tools?.map((t) => t.name).join(", ") || "Not specified";
-  const experienceYears = resume.experience?.length
-    ? `${resume.experience.length} roles`
-    : "Unknown";
-  const experienceDetail = resume.experience
-    ?.slice(0, 5)
-    .map((e) => `${e.role} at ${e.company} (${e.startDate}${e.endDate ? "–" + e.endDate : "–Present"}): ${e.description}`)
-    .join("\n") || "None listed";
-  const projectDetail = resume.projects
-    ?.map((p) => `${p.title}: ${p.description}`)
-    .join("\n") || "None listed";
+  const candidateContext = buildCandidateContext(resume);
 
-  const jobBlock = jobs.slice(0, 30).map((j, i) =>
-    `[${i}] Title: ${j.title} | Company: ${j.company} | Location: ${j.location} | Type: ${j.type}${j.salary ? " | Salary: " + j.salary : ""}\nDescription: ${j.description.slice(0, 300)}\nTags: ${j.tags?.join(", ") || "none"}`
-  ).join("\n\n");
+  // Score each job individually, 4 concurrent calls
+  const scores = await parallelMap(
+    jobs,
+    (job) => scoreOneJob(job, candidateContext),
+    50, // only THIS job gets 50 on failure, not all
+    4
+  );
 
-  const prompt = `You are a strict job evaluator. Score each job against this candidate using the rubric below. Be harsh and differentiated — do NOT cluster scores. If a job is irrelevant, give it a low score.
+  const scored = jobs.map((job, i) => ({
+    ...job,
+    matchScore: scores[i],
+  }));
 
-CANDIDATE PROFILE:
-Title: ${resume.title}
-Summary: ${resume.about || "Not provided"}
-Skills: ${skills}
-Experience (${experienceYears}):
-${experienceDetail}
-Projects:
-${projectDetail}
-
-SCORING RUBRIC (total 100):
-1. Role Alignment (30 pts): Does the job title and responsibilities match the candidate's current role and trajectory?
-2. Skills Match (30 pts): Do the required skills/tools overlap with the candidate's listed skills and project experience?
-3. Experience Fit (20 pts): Does the seniority level and years of experience align?
-4. Context Fit (10 pts): Location, work mode, industry familiarity.
-5. Growth Fit (10 pts): Does this role offer a logical next step in their career?
-
-PENALTIES (subtract from total):
-- Role mismatch (completely different field): -15
-- Skills mismatch (less than 30% overlap): -10
-- Seniority mismatch (junior role for senior candidate or vice versa): -5
-
-JOBS TO EVALUATE:
-${jobBlock}
-
-RULES:
-- Scores MUST range from 25 to 97. Use the full range.
-- No two jobs should have the same score unless truly identical in fit.
-- A perfect candidate-job match is 90+. Average fit is 60-75. Poor fit is below 50.
-- Return ONLY a JSON array: [{"index": 0, "score": 82}, ...] for each job.
-- No markdown, no explanation, no code fences.`;
-
-  try {
-    const response = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0, maxOutputTokens: 2048 },
-      }),
-    });
-
-    if (!response.ok) throw new Error("Gemini ranking failed");
-
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    const cleaned = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-    const scores: { index: number; score: number }[] = JSON.parse(cleaned);
-
-    const scored = jobs.map((job, i) => {
-      const match = scores.find((s) => s.index === i);
-      return { ...job, matchScore: match ? Math.min(97, Math.max(25, match.score)) : 50 };
-    });
-
-    return scored.sort((a, b) => b.matchScore - a.matchScore);
-  } catch {
-    return jobs.map((j) => ({ ...j, matchScore: 50 }));
-  }
+  return scored.sort((a, b) => b.matchScore - a.matchScore);
 }
