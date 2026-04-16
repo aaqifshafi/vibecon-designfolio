@@ -28,6 +28,7 @@ import {
   RotateCcw,
   ExternalLink,
   Video,
+  MessageCircle,
 } from "lucide-react";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { useResume } from "@/context/ResumeContext";
@@ -41,6 +42,7 @@ import type { JobItem, JobColumns, JobColumn } from "@/lib/job-types";
 import { COLUMN_LABELS, COLUMN_ORDER, EMPTY_COLUMNS } from "@/lib/job-types";
 import JobsStepper from "@/components/jobs-stepper";
 import InterviewModal from "@/components/interview-modal";
+import ScoutChat from "@/components/scout-chat";
 
 const COLUMN_ICONS: Record<JobColumn, typeof Sparkles> = {
   "ai-picks": Sparkles,
@@ -66,7 +68,7 @@ const COLUMN_DOT_COLORS: Record<JobColumn, string> = {
   offer: "bg-rose-500",
 };
 
-function JobCard({ job, columnId, onStartInterview }: { job: JobItem; columnId?: string; onStartInterview?: (job: JobItem) => void }) {
+function JobCard({ job, columnId, onStartInterview, onAskScout }: { job: JobItem; columnId?: string; onStartInterview?: (job: JobItem) => void; onAskScout?: (job: JobItem) => void }) {
   return (
     <div
       data-testid={`job-card-${job.id}`}
@@ -161,6 +163,18 @@ function JobCard({ job, columnId, onStartInterview }: { job: JobItem; columnId?:
           Take Mock Interview
         </button>
       )}
+
+      {onAskScout && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onAskScout(job); }}
+          data-testid={`ask-scout-${job.id}`}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-black/8 dark:border-white/8 text-[#7A736C] dark:text-[#9E9893] text-[12px] font-medium hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] hover:border-black/15 dark:hover:border-white/15 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          Ask Scout
+        </button>
+      )}
     </div>
   );
 }
@@ -176,6 +190,7 @@ export default function Jobs() {
   const [error, setError] = useState<string | null>(null);
   const [defaultLocation, setDefaultLocation] = useState("");
   const [interviewJob, setInterviewJob] = useState<JobItem | null>(null);
+  const [scoutJob, setScoutJob] = useState<JobItem | null>(null);
 
   // Hydrate resume + check preferences
   useEffect(() => {
@@ -408,7 +423,7 @@ export default function Jobs() {
                   >
                     {items.map((job) => (
                       <KanbanItem key={job.id} value={job.id}>
-                        <JobCard job={job} columnId={colId} onStartInterview={setInterviewJob} />
+                        <JobCard job={job} columnId={colId} onStartInterview={setInterviewJob} onAskScout={setScoutJob} />
                       </KanbanItem>
                     ))}
 
@@ -446,6 +461,16 @@ export default function Jobs() {
           <InterviewModal
             job={interviewJob}
             onClose={() => setInterviewJob(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Scout Chat */}
+      <AnimatePresence>
+        {scoutJob && (
+          <ScoutChat
+            job={scoutJob}
+            onClose={() => setScoutJob(null)}
           />
         )}
       </AnimatePresence>
