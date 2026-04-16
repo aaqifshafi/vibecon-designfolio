@@ -99,6 +99,7 @@ export async function createAnamSession(
     },
     body: JSON.stringify({
       personaConfig: {
+        name: "Kevin",
         avatarId: KEVIN_AVATAR_ID,
         llmId: KEVIN_LLM_ID,
         voiceId: KEVIN_VOICE_ID,
