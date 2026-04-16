@@ -507,15 +507,12 @@ export default function Jobs() {
                         data-testid="help-me-choose-card"
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center shrink-0 group-hover/choose:scale-110 transition-transform">
-                            <Trophy className="w-4 h-4 text-rose-500" />
+                          <div className="shrink-0 orb-spinning">
+                            <ColorOrb dimension="32px" spinDuration={8} />
                           </div>
                           <div>
                             <div className="text-[13px] font-bold text-[#1A1A1A] dark:text-[#F0EDE7]">Help me choose</div>
                             <div className="text-[11px] text-[#7A736C] dark:text-[#9E9893]">Compare {items.length} offers with Scout</div>
-                          </div>
-                          <div className="ml-auto choose-card-orb">
-                            <ColorOrb dimension="16px" spinDuration={8} />
                           </div>
                         </div>
                       </div>
