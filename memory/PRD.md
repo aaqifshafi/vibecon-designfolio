@@ -24,14 +24,19 @@ Pull code from connected public Git repository, install dependencies, fix build 
 12. Individual embedding/heuristic Gemini ranking (no more 50% clustering)
 13. JSearch country code resolution from Nominatim
 14. Company logos on JobCard and JobDetailPanel (employer_logo from JSearch)
-15. Gauge component (full 21st.dev/designali-in/gauge-1 registry version) replacing text match scores
-16. UI cleanup: Compact 24px gauge ring + text in cards, 42px labeled gauge in detail panel header, logos only when available, no fallback placeholder blocks
+15. Gauge component (full 21st.dev/designali-in/gauge-1 registry version)
+16. **Job Card redesign** matching reference UI:
+    - Row 1: Large logo (40px) or colored text avatar (first letter) + Company + Location | 48px Gauge top-right
+    - Row 2: Bold job title (15px, clickable)
+    - Row 3: Meta pills (type + work arrangement + salary) with Briefcase/Monitor icons
+    - Row 4: Action bar (external link + interview + ask scout) separated by border-top
+    - Smart duplicate pill prevention (Remote type + Remote location = single pill)
 
 ## Key Files
-- `/app/client/src/pages/jobs.tsx` — Kanban board + inline JobCard component
+- `/app/client/src/pages/jobs.tsx` — Kanban board + inline JobCard component (redesigned)
 - `/app/client/src/components/job-detail-panel.tsx` — Slide-out detail panel
-- `/app/client/src/components/ui/gauge-1.tsx` — Full 21st.dev gauge component (multiRing, thresholds, tickMarks, glow)
-- `/app/client/src/lib/jsearch.ts` — JSearch API integration (maps employer_logo)
+- `/app/client/src/components/ui/gauge-1.tsx` — Full 21st.dev gauge component
+- `/app/client/src/lib/jsearch.ts` — JSearch API integration
 - `/app/client/src/lib/job-types.ts` — JobItem type (includes employerLogo field)
 
 ## Backlog

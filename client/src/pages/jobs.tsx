@@ -29,6 +29,8 @@ import {
   ExternalLink,
   Video,
   MessageCircle,
+  Monitor,
+  Bookmark,
 } from "lucide-react";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { Gauge } from "@/components/ui/gauge-1";
@@ -72,140 +74,153 @@ const COLUMN_DOT_COLORS: Record<JobColumn, string> = {
   offer: "bg-rose-500",
 };
 
+const AVATAR_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: { job: JobItem; columnId?: string; onStartInterview?: (job: JobItem) => void; onAskScout?: (job: JobItem) => void; onClickTitle?: (job: JobItem) => void }) {
+  const avatarColor = getAvatarColor(job.company);
+  const initials = job.company.charAt(0).toUpperCase();
+
   return (
     <div
       data-testid={`job-card-${job.id}`}
       className="bg-white dark:bg-[#2A2520] rounded-xl border border-black/5 dark:border-white/8 p-4 shadow-sm hover:shadow-md transition-shadow group/card"
     >
-      <div className="flex items-start justify-between gap-2 mb-2.5">
-        <div className="flex items-start gap-2.5 min-w-0 flex-1">
-          {job.employerLogo && (
+      {/* Row 1: Logo/Avatar + Company + Location | Gauge */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {job.employerLogo ? (
             <img
               src={job.employerLogo}
               alt={`${job.company} logo`}
-              className="w-7 h-7 rounded-md object-contain bg-white dark:bg-white/10 border border-black/5 dark:border-white/10 shrink-0 mt-0.5"
+              className="w-10 h-10 rounded-xl object-contain bg-white border border-black/5 dark:border-white/10 shrink-0 p-1"
               data-testid={`employer-logo-${job.id}`}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                el.style.display = "none";
+                el.nextElementSibling?.classList.remove("hidden");
+              }}
             />
-          )}
+          ) : null}
+          <div
+            className={cn(
+              "w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-white text-[15px] font-bold",
+              job.employerLogo && "hidden"
+            )}
+            style={{ backgroundColor: avatarColor }}
+            data-testid={`employer-avatar-${job.id}`}
+          >
+            {initials}
+          </div>
           <div className="min-w-0 flex-1">
-            <h4
-              className={cn("text-[14px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] leading-tight truncate", onClickTitle && "cursor-pointer hover:text-violet-600 dark:hover:text-violet-400 transition-colors")}
-              onClick={onClickTitle ? (e) => { e.stopPropagation(); onClickTitle(job); } : undefined}
-            >
-              {job.title}
-            </h4>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Building2 className="w-3 h-3 text-[#7A736C] dark:text-[#9E9893] shrink-0" />
-              <span className="text-[12px] text-[#7A736C] dark:text-[#9E9893] truncate font-medium">
-                {job.company}
-              </span>
-            </div>
+            <span className="text-[13px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] block truncate">
+              {job.company}
+            </span>
+            <span className="text-[11px] text-[#7A736C] dark:text-[#9E9893] block truncate">
+              {job.location}
+            </span>
           </div>
         </div>
-        <KanbanItemHandle>
-          <GripVertical className="w-4 h-4 text-[#7A736C]/40 dark:text-[#9E9893]/40 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0 mt-0.5" />
-        </KanbanItemHandle>
-      </div>
-
-      <div className="flex items-center gap-3 mb-3 text-[11px] text-[#7A736C] dark:text-[#9E9893]">
-        <span className="flex items-center gap-1">
-          <MapPin className="w-3 h-3" />
-          {job.location}
-        </span>
-        <span className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          {job.postedDate}
-        </span>
-      </div>
-
-      <p className="text-[12px] text-[#7A736C] dark:text-[#B5AFA5] leading-relaxed mb-3 line-clamp-2">
-        {job.description}
-      </p>
-
-      <div className="flex items-center justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          {job.tags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#1A1A1A]/70 dark:text-[#F0EDE7]/70"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          {job.url && (
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-[#7A736C] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <KanbanItemHandle>
+            <GripVertical className="w-4 h-4 text-[#7A736C]/30 dark:text-[#9E9893]/30 opacity-0 group-hover/card:opacity-100 transition-opacity" />
+          </KanbanItemHandle>
           {job.matchScore > 0 && (
-            <div data-testid={`gauge-score-${job.id}`} className="flex items-center gap-1">
+            <div data-testid={`gauge-score-${job.id}`} className="text-[#1A1A1A] dark:text-[#F0EDE7]">
               <Gauge
                 value={job.matchScore}
-                size={24}
-                strokeWidth={3}
-                showValue={false}
-                gapPercent={3}
+                size={48}
+                strokeWidth={4}
+                showValue={true}
+                gapPercent={5}
                 primary={{
                   0: "danger",
                   50: "warning",
                   70: "info",
                   85: "success",
                 }}
-                secondary="rgba(120,120,120,0.1)"
+                secondary="rgba(120,120,120,0.12)"
               />
-              <span className={cn(
-                "text-[11px] font-bold",
-                job.matchScore >= 85 ? "text-emerald-600 dark:text-emerald-400"
-                  : job.matchScore >= 70 ? "text-blue-600 dark:text-blue-400"
-                  : job.matchScore >= 50 ? "text-amber-600 dark:text-amber-400"
-                  : "text-red-500 dark:text-red-400"
-              )}>{job.matchScore}%</span>
             </div>
           )}
         </div>
       </div>
 
-      {job.salary && (
-        <div className="mt-2.5 pt-2.5 border-t border-black/5 dark:border-white/5">
-          <span className="text-[12px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7]">
+      {/* Row 2: Job Title */}
+      <h4
+        className={cn(
+          "text-[15px] font-bold text-[#1A1A1A] dark:text-[#F0EDE7] leading-snug mb-3",
+          onClickTitle && "cursor-pointer hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+        )}
+        onClick={onClickTitle ? (e) => { e.stopPropagation(); onClickTitle(job); } : undefined}
+      >
+        {job.title}
+      </h4>
+
+      {/* Row 3: Meta pills */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {job.type && (
+          <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#7A736C] dark:text-[#9E9893] bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-1 rounded-lg">
+            <Briefcase className="w-3 h-3" />
+            {job.type}
+          </span>
+        )}
+        {job.location && !(job.type?.toLowerCase() === "remote" && job.location.toLowerCase().includes("remote")) && (
+          <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#7A736C] dark:text-[#9E9893] bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-1 rounded-lg">
+            <Monitor className="w-3 h-3" />
+            {job.location.toLowerCase().includes("remote") ? "Remote" : "On-site"}
+          </span>
+        )}
+        {job.salary && (
+          <span className="text-[11px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-1 rounded-lg">
             {job.salary}
           </span>
-        </div>
-      )}
+        )}
+      </div>
 
-      {columnId === "interview" && onStartInterview && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onStartInterview(job); }}
-          data-testid={`mock-interview-${job.id}`}
-          className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A] text-[12px] font-semibold hover:opacity-90 transition-opacity"
-        >
-          <Video className="w-3.5 h-3.5" />
-          Take Mock Interview
-        </button>
-      )}
+      {/* Row 4: Action bar */}
+      <div className="flex items-center gap-2 pt-3 border-t border-black/5 dark:border-white/5">
+        {job.url && (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="w-8 h-8 rounded-lg border border-black/8 dark:border-white/8 flex items-center justify-center text-[#7A736C] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] hover:border-black/15 dark:hover:border-white/15 transition-all shrink-0"
+            data-testid={`apply-link-${job.id}`}
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
 
-      {onAskScout && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onAskScout(job); }}
-          data-testid={`ask-scout-${job.id}`}
-          className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-black/8 dark:border-white/8 text-[#7A736C] dark:text-[#9E9893] text-[12px] font-medium hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] hover:border-black/15 dark:hover:border-white/15 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          Ask Scout
-        </button>
-      )}
+        {columnId === "interview" && onStartInterview && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onStartInterview(job); }}
+            data-testid={`mock-interview-${job.id}`}
+            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A] text-[11px] font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Video className="w-3.5 h-3.5" />
+            Interview
+          </button>
+        )}
+
+        {onAskScout && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAskScout(job); }}
+            data-testid={`ask-scout-${job.id}`}
+            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-black/8 dark:border-white/8 text-[#7A736C] dark:text-[#9E9893] text-[11px] font-medium hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] hover:border-black/15 dark:hover:border-white/15 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Ask Scout
+          </button>
+        )}
+      </div>
     </div>
   );
 }
