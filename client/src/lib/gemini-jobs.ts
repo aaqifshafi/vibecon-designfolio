@@ -1,7 +1,7 @@
 import type { ParsedResume } from "./types";
 import type { JobItem } from "./job-types";
 
-const GEMINI_API_KEY = "AIzaSyCxizgpf2jsdm-dsp0Rw3WC1hyYRLhAnhc";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
