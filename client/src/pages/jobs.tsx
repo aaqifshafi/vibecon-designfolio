@@ -376,7 +376,7 @@ export default function Jobs() {
     >
       {/* Header */}
       <div className="sticky top-0 z-50 bg-[#F0EDE7]/95 dark:bg-[#1A1A1A]/95 backdrop-blur-sm border-b border-black/5 dark:border-white/5">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-20 h-16 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate("/builder")}
@@ -448,7 +448,7 @@ export default function Jobs() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="max-w-[1400px] mx-auto px-6 lg:px-20 pt-3"
+            className="max-w-[1400px] mx-auto px-4 lg:px-8 pt-3"
           >
             <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-[13px] font-medium px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-900/30" data-testid="jobs-error">
               {error}
@@ -459,7 +459,7 @@ export default function Jobs() {
 
       {/* Board / COSMOS Views */}
       {viewMode === "board" ? (
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-20 py-6">
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-6">
         <Kanban
           value={columns}
           onValueChange={(val) => setColumns(val as JobColumns)}
