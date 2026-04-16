@@ -88,7 +88,7 @@ export function layoutPlanets(
   const cy = height / 2;
   const maxRadius = Math.min(cx, cy) * 0.78;
 
-  return jobs.map((job, i) => {
+  const planets = jobs.map((job, i) => {
     const gravity = computeGravity(job, mode);
     const distance = 1 - gravity;
     const r = 0.15 * maxRadius + distance * 0.85 * maxRadius;
@@ -98,7 +98,7 @@ export function layoutPlanets(
     const angle = baseAngle + jitter;
     const rad = (angle * Math.PI) / 180;
 
-    const size = 12 + (job.matchScore / 100) * 18;
+    const size = 36 + (job.matchScore / 100) * 28;
 
     return {
       job, distance, size, angle,
@@ -107,6 +107,35 @@ export function layoutPlanets(
       color: COLORS[i % COLORS.length],
     };
   });
+
+  // Collision resolution — push overlapping planets apart
+  const padding = 18;
+  for (let iter = 0; iter < 30; iter++) {
+    let moved = false;
+    for (let i = 0; i < planets.length; i++) {
+      for (let j = i + 1; j < planets.length; j++) {
+        const a = planets[i];
+        const b = planets[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = (a.size + b.size) / 2 + padding;
+        if (dist < minDist && dist > 0) {
+          const overlap = (minDist - dist) / 2;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          a.x -= nx * overlap;
+          a.y -= ny * overlap;
+          b.x += nx * overlap;
+          b.y += ny * overlap;
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+
+  return planets;
 }
 
 export function getAllJobs(columns: JobColumns): JobItem[] {

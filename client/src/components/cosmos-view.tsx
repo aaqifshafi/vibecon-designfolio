@@ -31,6 +31,10 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 1200, h: 700 });
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isPanning = useRef(false);
+  const panStart = useRef({ x: 0, y: 0, px: 0, py: 0 });
 
   const allJobs = useMemo(() => getAllJobs(columns), [columns]);
 
@@ -58,16 +62,48 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
   const cy = dims.h / 2;
   const maxR = Math.min(cx, cy) * 0.78;
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom((z) => Math.min(3, Math.max(0.4, z - e.deltaY * 0.001)));
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    isPanning.current = true;
+    panStart.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isPanning.current) return;
+    setPan({
+      x: panStart.current.px + (e.clientX - panStart.current.x),
+      y: panStart.current.py + (e.clientY - panStart.current.y),
+    });
+  };
+
+  const handlePointerUp = () => { isPanning.current = false; };
+
   return (
     <div
       ref={containerRef}
-      className="relative overflow-hidden"
+      className="relative overflow-hidden cursor-grab active:cursor-grabbing"
       style={{
         height: "calc(100vh - 64px)",
         background: "radial-gradient(ellipse at center, #1e1c1a 0%, #121110 100%)",
       }}
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
       data-testid="cosmos-view"
     >
+      {/* Zoomable + Pannable canvas */}
+      <div
+        className="absolute inset-0 origin-center transition-transform duration-150 ease-out"
+        style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+      >
       {/* Subtle dot grid */}
       <div className="absolute inset-0 opacity-[0.025]" style={{
         backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)",
@@ -145,7 +181,7 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
                   src={p.job.employerLogo}
                   alt={p.job.company}
                   className="rounded-full object-contain"
-                  style={{ width: p.size * 0.55, height: p.size * 0.55, padding: 1 }}
+                  style={{ width: p.size * 0.75, height: p.size * 0.75, padding: 1 }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden"); }}
                 />
               ) : null}
@@ -169,6 +205,14 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
           </motion.div>
         );
       })}
+
+      {/* Empty */}
+      {planets.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-[14px] text-white/25">No jobs to explore yet.</p>
+        </div>
+      )}
+      </div>{/* end zoomable canvas */}
 
       {/* Hover Tooltip */}
       <AnimatePresence>
@@ -216,12 +260,10 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
         ))}
       </div>
 
-      {/* Empty */}
-      {planets.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-[14px] text-white/25">No jobs to explore yet.</p>
-        </div>
-      )}
+      {/* Zoom hint */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-white/20 select-none pointer-events-none">
+        Scroll to zoom · Drag to pan
+      </div>
     </div>
   );
 }
