@@ -376,7 +376,7 @@ export default function Jobs() {
     >
       {/* Header */}
       <div className="sticky top-0 z-50 bg-[#F0EDE7]/95 dark:bg-[#1A1A1A]/95 backdrop-blur-sm border-b border-black/5 dark:border-white/5">
-        <div className="pl-[92px] pr-4 h-16 flex items-center justify-between">
+        <div className="pl-[108px] pr-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate("/builder")}
@@ -448,7 +448,7 @@ export default function Jobs() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="pl-[92px] pr-4 pt-3"
+            className="pl-[108px] pr-4 pt-3"
           >
             <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-[13px] font-medium px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-900/30" data-testid="jobs-error">
               {error}
@@ -459,7 +459,7 @@ export default function Jobs() {
 
       {/* Board / COSMOS Views */}
       {viewMode === "board" ? (
-      <div className="pl-[92px] pr-4 py-6 overflow-x-auto">
+      <div className="pl-[108px] pr-4 py-6 overflow-x-auto">
         <Kanban
           value={columns}
           onValueChange={(val) => setColumns(val as JobColumns)}
@@ -473,11 +473,12 @@ export default function Jobs() {
               return (
                 <motion.div
                   key={colId}
-                  initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+                  initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  transition={{ duration: 0.4, delay: colIndex * 0.08, ease: [0.23, 1, 0.32, 1] }}
+                  transition={{ duration: 0.6, delay: 0.1 + colIndex * 0.15, ease: [0.23, 1, 0.32, 1] }}
+                  className="flex flex-col h-[calc(100vh-120px)]"
                 >
-                <KanbanColumn value={colId} className="min-h-[calc(100vh-180px)]">
+                <KanbanColumn value={colId} className="flex flex-col min-h-0 h-full">
                   <div className="flex items-center justify-between mb-3 px-1">
                     <div className="flex items-center gap-2">
                       <div className={cn("w-2 h-2 rounded-full", COLUMN_DOT_COLORS[colId])} />
@@ -492,7 +493,7 @@ export default function Jobs() {
                   <KanbanColumnContent
                     value={colId}
                     className={cn(
-                      "flex-1 rounded-xl p-2 min-h-[200px]",
+                      "flex-1 rounded-xl p-2 min-h-0 overflow-y-auto",
                       "bg-black/[0.02] dark:bg-white/[0.02]",
                       "border border-dashed border-transparent transition-colors",
                       items.length === 0 && "border-black/8 dark:border-white/8"
