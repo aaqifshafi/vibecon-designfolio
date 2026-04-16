@@ -86,23 +86,54 @@ export async function rankJobsWithGemini(
 ): Promise<JobItem[]> {
   if (jobs.length === 0) return jobs;
 
-  const skills = resume.tools?.map((t) => t.name).join(", ") || "";
-  const experienceSummary = resume.experience
-    ?.slice(0, 3)
-    .map((e) => `${e.role} at ${e.company}`)
-    .join("; ") || "";
+  const skills = resume.tools?.map((t) => t.name).join(", ") || "Not specified";
+  const experienceYears = resume.experience?.length
+    ? `${resume.experience.length} roles`
+    : "Unknown";
+  const experienceDetail = resume.experience
+    ?.slice(0, 5)
+    .map((e) => `${e.role} at ${e.company} (${e.startDate}${e.endDate ? "–" + e.endDate : "–Present"}): ${e.description}`)
+    .join("\n") || "None listed";
+  const projectDetail = resume.projects
+    ?.map((p) => `${p.title}: ${p.description}`)
+    .join("\n") || "None listed";
 
-  const jobSummaries = jobs.slice(0, 30).map((j, i) => `[${i}] "${j.title}" at ${j.company} — ${j.description.slice(0, 100)}`).join("\n");
+  const jobBlock = jobs.slice(0, 30).map((j, i) =>
+    `[${i}] Title: ${j.title} | Company: ${j.company} | Location: ${j.location} | Type: ${j.type}${j.salary ? " | Salary: " + j.salary : ""}\nDescription: ${j.description.slice(0, 300)}\nTags: ${j.tags?.join(", ") || "none"}`
+  ).join("\n\n");
 
-  const prompt = `You are a job matching engine. Score how well each job matches this candidate's profile. Return ONLY a JSON array of objects with { index: number, score: number } where score is 50-98. No markdown, no explanation.
+  const prompt = `You are a strict job evaluator. Score each job against this candidate using the rubric below. Be harsh and differentiated — do NOT cluster scores. If a job is irrelevant, give it a low score.
 
-Candidate:
-- Title: ${resume.title}
-- Skills: ${skills}
-- Experience: ${experienceSummary}
+CANDIDATE PROFILE:
+Title: ${resume.title}
+Summary: ${resume.about || "Not provided"}
+Skills: ${skills}
+Experience (${experienceYears}):
+${experienceDetail}
+Projects:
+${projectDetail}
 
-Jobs:
-${jobSummaries}`;
+SCORING RUBRIC (total 100):
+1. Role Alignment (30 pts): Does the job title and responsibilities match the candidate's current role and trajectory?
+2. Skills Match (30 pts): Do the required skills/tools overlap with the candidate's listed skills and project experience?
+3. Experience Fit (20 pts): Does the seniority level and years of experience align?
+4. Context Fit (10 pts): Location, work mode, industry familiarity.
+5. Growth Fit (10 pts): Does this role offer a logical next step in their career?
+
+PENALTIES (subtract from total):
+- Role mismatch (completely different field): -15
+- Skills mismatch (less than 30% overlap): -10
+- Seniority mismatch (junior role for senior candidate or vice versa): -5
+
+JOBS TO EVALUATE:
+${jobBlock}
+
+RULES:
+- Scores MUST range from 25 to 97. Use the full range.
+- No two jobs should have the same score unless truly identical in fit.
+- A perfect candidate-job match is 90+. Average fit is 60-75. Poor fit is below 50.
+- Return ONLY a JSON array: [{"index": 0, "score": 82}, ...] for each job.
+- No markdown, no explanation, no code fences.`;
 
   try {
     const response = await fetch(GEMINI_URL, {
@@ -110,7 +141,7 @@ ${jobSummaries}`;
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+        generationConfig: { temperature: 0, maxOutputTokens: 2048 },
       }),
     });
 
@@ -123,12 +154,11 @@ ${jobSummaries}`;
 
     const scored = jobs.map((job, i) => {
       const match = scores.find((s) => s.index === i);
-      return { ...job, matchScore: match ? Math.min(98, Math.max(50, match.score)) : 75 };
+      return { ...job, matchScore: match ? Math.min(97, Math.max(25, match.score)) : 50 };
     });
 
     return scored.sort((a, b) => b.matchScore - a.matchScore);
   } catch {
-    // If Gemini fails, return jobs with default scores
-    return jobs.map((j) => ({ ...j, matchScore: 75 }));
+    return jobs.map((j) => ({ ...j, matchScore: 50 }));
   }
 }
