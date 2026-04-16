@@ -174,15 +174,12 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
               data-testid="stepper-screen-0"
             >
               {/* Orbit animation behind */}
-              <div className="absolute inset-0 flex items-center justify-center -z-0 opacity-[0.18] dark:opacity-[0.12] pointer-events-none" aria-hidden>
-                <OrbitAnimation orbitItems={ORBIT_ITEMS} stageSize={440} imageSize={52} />
+              <div className="absolute inset-0 flex items-center justify-center -z-0 pointer-events-none" aria-hidden>
+                <OrbitAnimation orbitItems={ORBIT_ITEMS} stageSize={580} imageSize={52} />
               </div>
 
               <div className="relative z-10 flex flex-col items-center">
-                <div className="w-14 h-14 rounded-2xl bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center mb-6">
-                  <Sparkles className="w-7 h-7 text-violet-500" />
-                </div>
-                <h1 className="text-[28px] font-bold tracking-tight mb-3 leading-tight">
+                <h1 className="text-[28px] font-bold tracking-tight mb-3 leading-tight max-w-[380px]">
                   We've found 1,200+ jobs that match your profile
                 </h1>
                 <p className="text-[15px] text-[#7A736C] dark:text-[#B5AFA5] leading-relaxed mb-8 max-w-[420px]" style={{ fontWeight: 450 }}>
