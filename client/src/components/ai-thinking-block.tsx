@@ -1,28 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
+import { FileText, Search, Brain, BarChart3, CheckCircle2 } from "lucide-react";
 
-const THINKING_CONTENT = `Okay, let me start by analyzing the resume to understand the candidate's core strengths. I can see strong experience with frontend frameworks, particularly React and TypeScript. There's also significant backend experience with Node.js and Python.
+const STEPS = [
+  { icon: FileText, label: "Reading your resume", desc: "Extracting skills, experience & preferences" },
+  { icon: Search, label: "Fetching jobs from JSearch", desc: "Scanning 3 pages of live listings" },
+  { icon: Brain, label: "Matching skills to roles", desc: "Cross-referencing your profile with each job" },
+  { icon: BarChart3, label: "Scoring & ranking results", desc: "Calculating match quality per position" },
+  { icon: CheckCircle2, label: "Preparing your board", desc: "Sorting top picks into AI Picks column" },
+];
 
-Now I need to cross-reference these skills with the job listings from JSearch. Let me look at each position and evaluate how well it matches the candidate's profile. I'll consider the job title, required skills, experience level, and location preferences.
-
-Starting with the first batch of results. I see several positions that mention React and TypeScript as primary requirements. These are strong matches. Let me check the seniority levels — the candidate specified they're targeting senior roles, so I should weight positions that match that level higher.
-
-For the location preferences, I need to filter based on what was specified in the onboarding. Some positions are remote-friendly which could be a good fit. Let me also look at salary ranges where available to ensure they align with the candidate's expected level.
-
-I'm now evaluating the skills overlap for each position. A strong match would have at least 70% overlap between the candidate's skills and the job requirements. I'm also considering adjacent skills — for example, if a job requires Next.js and the candidate knows React, that's still a partial match since Next.js is built on React.
-
-Let me now look at company culture signals. Some job descriptions emphasize innovation and modern tech stacks, which aligns with the candidate's experience with cutting-edge tools. Others focus more on stability and enterprise solutions.
-
-I'm also considering growth potential. Positions at companies that are scaling tend to offer more opportunities for career advancement. I'll factor in company size, funding stage, and industry growth trends where available.
-
-Now scoring each position. I'm using a weighted combination of skills match, seniority alignment, location fit, and growth potential. Each position gets a composite score that reflects how well it matches the overall profile.
-
-Sorting the results by match quality. The top positions show strong alignment across multiple dimensions. Let me also identify a few stretch opportunities — positions that might require the candidate to grow in certain areas but offer significant upside.
-
-Final pass — checking for any red flags like unrealistic requirements or potential mismatches. Removing any duplicate listings and ensuring each position has enough detail for the candidate to make an informed decision.
-
-Preparing the ranked results. The AI picks column will contain the highest-scoring matches, ready for the candidate to review, shortlist, and take action on. Each position will show its match score so the candidate can quickly assess fit at a glance.`;
+const STEP_INTERVAL = 2400;
 
 interface AIThinkingBlockProps {
   status?: string;
@@ -30,48 +20,27 @@ interface AIThinkingBlockProps {
 }
 
 export default function AIThinkingBlock({ status = "Scout is thinking", className }: AIThinkingBlockProps) {
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [timer, setTimer] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
-    const timerInterval = setInterval(() => {
-      setTimer((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timerInterval);
+    const t = setInterval(() => setTimer((p) => p + 1), 1000);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
-    if (contentRef.current) {
-      const scrollHeight = contentRef.current.scrollHeight;
-      const clientHeight = contentRef.current.clientHeight;
-      const maxScroll = scrollHeight - clientHeight;
-
-      scrollIntervalRef.current = setInterval(() => {
-        setScrollPosition((prev) => {
-          const next = prev + 1;
-          return next >= maxScroll ? 0 : next;
-        });
-      }, 5);
-
-      return () => {
-        if (scrollIntervalRef.current) clearInterval(scrollIntervalRef.current);
-      };
-    }
+    const t = setInterval(() => {
+      setActiveStep((p) => (p < STEPS.length - 1 ? p + 1 : p));
+    }, STEP_INTERVAL);
+    return () => clearInterval(t);
   }, []);
-
-  useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = scrollPosition;
-    }
-  }, [scrollPosition]);
 
   return (
-    <div className={cn("flex flex-col max-w-xl w-full", className)} data-testid="ai-thinking-block">
-      <div className="flex items-center justify-start gap-2 mb-4">
+    <div className={cn("flex flex-col max-w-md w-full", className)} data-testid="ai-thinking-block">
+      {/* Header */}
+      <div className="flex items-center justify-start gap-2.5 mb-6">
         <Loader size="sm" className="text-[#1A1A1A] dark:text-[#F0EDE7]" />
-        <p className="text-[14px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] scout-shimmer">
+        <p className="text-[14px] font-semibold scout-shimmer">
           {status}
         </p>
         <span className="text-[12px] text-[#7A736C] dark:text-[#9E9893] tabular-nums">
@@ -79,21 +48,81 @@ export default function AIThinkingBlock({ status = "Scout is thinking", classNam
         </span>
       </div>
 
-      <div className="relative h-[150px] overflow-hidden rounded-xl border border-black/5 dark:border-white/8 bg-black/[0.03] dark:bg-white/[0.03]">
-        {/* Top fade */}
-        <div className="absolute top-0 left-0 right-0 h-[60px] bg-gradient-to-b from-[#F0EDE7] dark:from-[#1A1A1A] from-30% to-transparent z-10 pointer-events-none" />
-        {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-[60px] bg-gradient-to-t from-[#F0EDE7] dark:from-[#1A1A1A] from-30% to-transparent z-10 pointer-events-none" />
+      {/* Timeline */}
+      <div className="flex flex-col">
+        {STEPS.map((step, i) => {
+          const Icon = step.icon;
+          const isActive = i === activeStep;
+          const isDone = i < activeStep;
+          const isVisible = i <= activeStep;
 
-        <div
-          ref={contentRef}
-          className="h-full overflow-hidden px-4 py-3"
-          style={{ scrollBehavior: "auto" }}
-        >
-          <p className="text-[12px] leading-relaxed whitespace-pre-wrap text-[#7A736C] dark:text-[#9E9893]">
-            {THINKING_CONTENT}
-          </p>
-        </div>
+          return (
+            <AnimatePresence key={i}>
+              {isVisible && (
+                <motion.div
+                  initial={{ opacity: 0, filter: "blur(6px)", y: 6 }}
+                  animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+                  transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                  className="flex items-start gap-3 relative"
+                >
+                  {/* Vertical line */}
+                  {i < STEPS.length - 1 && (
+                    <div
+                      className={cn(
+                        "absolute left-[13px] top-[28px] w-px h-[calc(100%-12px)]",
+                        isDone ? "bg-[#1A1A1A]/20 dark:bg-[#F0EDE7]/20" : "bg-black/8 dark:bg-white/8"
+                      )}
+                    />
+                  )}
+
+                  {/* Icon */}
+                  <div
+                    className={cn(
+                      "w-[26px] h-[26px] rounded-lg flex items-center justify-center shrink-0 z-[1] transition-colors duration-500",
+                      isActive
+                        ? "bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A]"
+                        : isDone
+                          ? "bg-[#1A1A1A]/10 dark:bg-[#F0EDE7]/10 text-[#1A1A1A] dark:text-[#F0EDE7]"
+                          : "bg-black/5 dark:bg-white/5 text-[#7A736C] dark:text-[#9E9893]"
+                    )}
+                  >
+                    {isDone ? (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    ) : (
+                      <Icon className={cn("w-3.5 h-3.5", isActive && "animate-pulse")} />
+                    )}
+                  </div>
+
+                  {/* Text */}
+                  <div className="pb-5 min-w-0">
+                    <div
+                      className={cn(
+                        "text-[13px] font-semibold leading-tight transition-colors duration-300",
+                        isActive
+                          ? "text-[#1A1A1A] dark:text-[#F0EDE7]"
+                          : isDone
+                            ? "text-[#1A1A1A]/50 dark:text-[#F0EDE7]/50"
+                            : "text-[#7A736C] dark:text-[#9E9893]"
+                      )}
+                    >
+                      {step.label}
+                    </div>
+                    {isActive && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.15, duration: 0.3 }}
+                        className="text-[11px] text-[#7A736C] dark:text-[#9E9893] mt-0.5"
+                      >
+                        {step.desc}
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          );
+        })}
       </div>
     </div>
   );
