@@ -43,6 +43,7 @@ import { COLUMN_LABELS, COLUMN_ORDER, EMPTY_COLUMNS } from "@/lib/job-types";
 import JobsStepper from "@/components/jobs-stepper";
 import InterviewModal from "@/components/interview-modal";
 import ScoutChat from "@/components/scout-chat";
+import OfferDecisionChat from "@/components/offer-decision-chat";
 
 const COLUMN_ICONS: Record<JobColumn, typeof Sparkles> = {
   "ai-picks": Sparkles,
@@ -191,6 +192,7 @@ export default function Jobs() {
   const [defaultLocation, setDefaultLocation] = useState("");
   const [interviewJob, setInterviewJob] = useState<JobItem | null>(null);
   const [scoutJob, setScoutJob] = useState<JobItem | null>(null);
+  const [showOfferDecision, setShowOfferDecision] = useState(false);
 
   // Hydrate resume + check preferences
   useEffect(() => {
@@ -421,6 +423,26 @@ export default function Jobs() {
                       items.length === 0 && "border-black/8 dark:border-white/8"
                     )}
                   >
+                    {/* Help me choose card — Offer column with ≥2 jobs */}
+                    {colId === "offer" && items.length >= 2 && (
+                      <div
+                        className="mb-2 p-3.5 rounded-xl bg-gradient-to-br from-rose-50 to-amber-50 dark:from-rose-950/30 dark:to-amber-950/20 border border-rose-200/60 dark:border-rose-800/30 cursor-pointer hover:shadow-md transition-all group/choose"
+                        onClick={() => { setScoutJob(null); setShowOfferDecision(true); }}
+                        data-testid="help-me-choose-card"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center shrink-0 group-hover/choose:scale-110 transition-transform">
+                            <Trophy className="w-4 h-4 text-rose-500" />
+                          </div>
+                          <div>
+                            <div className="text-[13px] font-bold text-[#1A1A1A] dark:text-[#F0EDE7]">Help me choose</div>
+                            <div className="text-[11px] text-[#7A736C] dark:text-[#9E9893]">Compare {items.length} offers with Scout</div>
+                          </div>
+                          <Sparkles className="w-4 h-4 text-rose-400 ml-auto opacity-60 group-hover/choose:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                    )}
+
                     {items.map((job) => (
                       <KanbanItem key={job.id} value={job.id}>
                         <JobCard job={job} columnId={colId} onStartInterview={setInterviewJob} onAskScout={setScoutJob} />
@@ -467,10 +489,20 @@ export default function Jobs() {
 
       {/* Scout Chat */}
       <AnimatePresence>
-        {scoutJob && (
+        {scoutJob && !showOfferDecision && (
           <ScoutChat
             job={scoutJob}
             onClose={() => setScoutJob(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Offer Decision Chat */}
+      <AnimatePresence>
+        {showOfferDecision && (columns.offer?.length ?? 0) >= 2 && (
+          <OfferDecisionChat
+            offers={columns.offer}
+            onClose={() => setShowOfferDecision(false)}
           />
         )}
       </AnimatePresence>
