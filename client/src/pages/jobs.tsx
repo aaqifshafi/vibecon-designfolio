@@ -467,11 +467,17 @@ export default function Jobs() {
           className="w-full"
         >
           <KanbanBoard className="grid grid-cols-5 gap-4" style={{ minWidth: "1100px" }}>
-            {COLUMN_ORDER.map((colId) => {
+            {COLUMN_ORDER.map((colId, colIndex) => {
               const Icon = COLUMN_ICONS[colId];
               const items = columns[colId] || [];
               return (
-                <KanbanColumn key={colId} value={colId} className="min-h-[calc(100vh-180px)]">
+                <motion.div
+                  key={colId}
+                  initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{ duration: 0.4, delay: colIndex * 0.08, ease: [0.23, 1, 0.32, 1] }}
+                >
+                <KanbanColumn value={colId} className="min-h-[calc(100vh-180px)]">
                   <div className="flex items-center justify-between mb-3 px-1">
                     <div className="flex items-center gap-2">
                       <div className={cn("w-2 h-2 rounded-full", COLUMN_DOT_COLORS[colId])} />
@@ -528,6 +534,7 @@ export default function Jobs() {
                     )}
                   </KanbanColumnContent>
                 </KanbanColumn>
+                </motion.div>
               );
             })}
           </KanbanBoard>
