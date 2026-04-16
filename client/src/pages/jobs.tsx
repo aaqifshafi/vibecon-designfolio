@@ -46,8 +46,6 @@ import ScoutChat from "@/components/scout-chat";
 import OfferDecisionChat from "@/components/offer-decision-chat";
 import CosmosView from "@/components/cosmos-view";
 import JobDetailPanel from "@/components/job-detail-panel";
-import type { StarData } from "@/lib/cosmos";
-import { computeCosmosDataFallback } from "@/lib/cosmos";
 
 const COLUMN_ICONS: Record<JobColumn, typeof Sparkles> = {
   "ai-picks": Sparkles,
@@ -201,7 +199,7 @@ export default function Jobs() {
   const [scoutJob, setScoutJob] = useState<JobItem | null>(null);
   const [showOfferDecision, setShowOfferDecision] = useState(false);
   const [viewMode, setViewMode] = useState<"board" | "cosmos">("board");
-  const [detailPanelJob, setDetailPanelJob] = useState<StarData | null>(null);
+  const [detailPanelJob, setDetailPanelJob] = useState<JobItem | null>(null);
 
   // Hydrate resume + check preferences
   useEffect(() => {
@@ -485,7 +483,7 @@ export default function Jobs() {
 
                     {items.map((job) => (
                       <KanbanItem key={job.id} value={job.id}>
-                        <JobCard job={job} columnId={colId} onStartInterview={setInterviewJob} onAskScout={setScoutJob} onClickTitle={(j) => setDetailPanelJob({ job: j, distance: 0.5, resonance: 0.5, weight: 0.5, companyType: "mid", insight: "", whyFits: j.description || "", angle: 0, x: 0, y: 0 })} />
+                        <JobCard job={job} columnId={colId} onStartInterview={setInterviewJob} onAskScout={setScoutJob} onClickTitle={setDetailPanelJob} />
                       </KanbanItem>
                     ))}
 
@@ -517,11 +515,11 @@ export default function Jobs() {
         </Kanban>
       </div>
       ) : (
-        <CosmosView columns={columns} resume={resume} />
+        <CosmosView columns={columns} onSelectJob={setDetailPanelJob} />
       )}
 
-      {/* Job Detail Panel (Kanban title click) */}
-      <JobDetailPanel star={detailPanelJob} onClose={() => setDetailPanelJob(null)} />
+      {/* Job Detail Panel */}
+      <JobDetailPanel job={detailPanelJob} onClose={() => setDetailPanelJob(null)} />
 
       {/* Interview Modal */}
       <AnimatePresence>

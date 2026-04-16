@@ -73,7 +73,7 @@ function toJobItem(r: JSearchResult, index: number): JobItem {
     location: buildLocation(r),
     type: r.job_is_remote ? "Remote" : (r.job_employment_type || "Full-time"),
     salary: buildSalary(r),
-    description: (r.job_description || "").slice(0, 200).trim() + (r.job_description?.length > 200 ? "..." : ""),
+    description: (r.job_description || "").slice(0, 1500).trim(),
     matchScore: 75,
     tags: buildTags(r),
     postedDate: timeAgo(r.job_posted_at_datetime_utc),
