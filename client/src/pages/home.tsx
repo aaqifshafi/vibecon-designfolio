@@ -135,17 +135,28 @@ export default function Home() {
 
   // Hydrate from IndexedDB on mount
   useEffect(() => {
+    let cancelled = false;
     getResumeData().then((data) => {
+      if (cancelled) return;
       if (data) {
         setResume(data);
         setDataLoaded(true);
       } else {
-        // No data — redirect to landing
         navigate("/", { replace: true });
       }
     }).catch(() => {
-      navigate("/", { replace: true });
+      // Don't redirect on transient DB errors — retry silently
+      if (!cancelled) {
+        setTimeout(() => {
+          getResumeData().then((data) => {
+            if (cancelled) return;
+            if (data) { setResume(data); setDataLoaded(true); }
+            else { navigate("/", { replace: true }); }
+          }).catch(() => {});
+        }, 500);
+      }
     });
+    return () => { cancelled = true; };
   }, []);
 
   // Derive display values from resume context with fallbacks
@@ -914,14 +925,15 @@ export default function Home() {
                     {displayTitle}
                   </p>
                 </div>
-                <a
-                  href="#"
+                <button
+                  type="button"
+                  onClick={(e) => e.preventDefault()}
                   className="text-[13px] font-medium flex items-center gap-1.5 border-b border-[#1A1A1A] dark:border-[#F0EDE7] pb-0.5 hover:opacity-70 transition-opacity w-fit group/download text-[#1A1A1A] dark:text-[#F0EDE7]"
                   onMouseEnter={() => downloadRef.current?.startAnimation()}
                   onMouseLeave={() => downloadRef.current?.stopAnimation()}
                 >
                   Download resume <DownloadIcon ref={downloadRef} size={14} />
-                </a>
+                </button>
               </div>
             </motion.div>
 

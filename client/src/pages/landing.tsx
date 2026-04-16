@@ -1194,10 +1194,10 @@ export default function Landing() {
           <footer className="w-full border-t border-[#EAE9E4] dark:border-border">
             <div className="px-6 py-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-[13px] font-medium text-[#1D1B1A]/50 dark:text-foreground/50 bg-[#F4F3E5] dark:bg-card">
               <a href="/privacy-policy" className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Terms & Conditions</a>
-              <a href="#" className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Refund Policy</a>
-              <a href="#" className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Pricing</a>
-              <a href="#" className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Contact / Support</a>
+              <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Terms & Conditions</a>
+              <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Refund Policy</a>
+              <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Pricing</a>
+              <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-[#1D1B1A] dark:text-foreground transition-colors">Contact / Support</a>
             </div>
             <div className="border-t border-[#EAE9E4] dark:border-border px-6 py-4 text-center text-[12px] font-medium text-[#1D1B1A]/40 dark:text-foreground/40 bg-[#F4F3E5] dark:bg-card">© 2026 Designfolio Labs LLP. All rights reserved.</div>
           </footer>

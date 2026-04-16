@@ -164,26 +164,44 @@ export default function Jobs() {
 
   // Hydrate resume + check preferences
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const resumeData = await getResumeData();
+        if (cancelled) return;
         if (!resumeData) { navigate("/", { replace: true }); return; }
         if (!resume) setResume(resumeData);
         setDefaultLocation(resumeData.location || "");
 
         const prefs = await getJobPreferences();
+        if (cancelled) return;
         if (prefs) {
-          // Already completed stepper — load Kanban
           const savedJobs = await getJobsData();
+          if (cancelled) return;
           if (savedJobs) setColumns(savedJobs);
           setPhase("kanban");
         } else {
           setPhase("stepper");
         }
       } catch {
-        navigate("/", { replace: true });
+        // Don't redirect on transient DB errors — retry once
+        if (!cancelled) {
+          setTimeout(async () => {
+            try {
+              const r = await getResumeData();
+              if (cancelled) return;
+              if (!r) { navigate("/", { replace: true }); return; }
+              if (!resume) setResume(r);
+              setDefaultLocation(r.location || "");
+              setPhase("stepper");
+            } catch {
+              if (!cancelled) navigate("/", { replace: true });
+            }
+          }, 500);
+        }
       }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   // Persist columns to IndexedDB
