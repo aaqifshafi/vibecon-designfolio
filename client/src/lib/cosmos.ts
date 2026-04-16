@@ -98,7 +98,7 @@ export function layoutPlanets(
     const angle = baseAngle + jitter;
     const rad = (angle * Math.PI) / 180;
 
-    const size = 36 + (job.matchScore / 100) * 28;
+    const size = 28 + (job.matchScore / 100) * 20;
 
     return {
       job, distance, size, angle,
@@ -108,10 +108,13 @@ export function layoutPlanets(
     };
   });
 
-  // Collision resolution — push overlapping planets apart
-  const padding = 18;
-  for (let iter = 0; iter < 30; iter++) {
+  // Collision resolution — push overlapping planets apart (including center YOU node)
+  const centerSize = 44;
+  const padding = 24;
+  for (let iter = 0; iter < 60; iter++) {
     let moved = false;
+
+    // Planet vs planet
     for (let i = 0; i < planets.length; i++) {
       for (let j = i + 1; j < planets.length; j++) {
         const a = planets[i];
@@ -132,6 +135,24 @@ export function layoutPlanets(
         }
       }
     }
+
+    // Planet vs center YOU
+    for (let i = 0; i < planets.length; i++) {
+      const p = planets[i];
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = (p.size + centerSize) / 2 + padding;
+      if (dist < minDist && dist > 0) {
+        const overlap = minDist - dist;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        p.x += nx * overlap;
+        p.y += ny * overlap;
+        moved = true;
+      }
+    }
+
     if (!moved) break;
   }
 

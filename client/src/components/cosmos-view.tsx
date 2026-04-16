@@ -195,13 +195,6 @@ export default function CosmosView({ columns, onSelectJob }: Props) {
                 {p.job.company.charAt(0).toUpperCase()}
               </span>
             </div>
-            {/* Company label */}
-            <span className={cn(
-              "absolute left-1/2 -translate-x-1/2 text-[10px] font-medium whitespace-nowrap transition-opacity duration-200",
-              isHovered ? "opacity-100 text-white/80" : "opacity-50 text-white/30"
-            )} style={{ top: p.size + 6 }}>
-              {p.job.company}
-            </span>
           </motion.div>
         );
       })}
