@@ -1,136 +1,157 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Trophy, ArrowRight, CheckCircle2, AlertTriangle, Target, ChevronRight } from "lucide-react";
+import { X, Sparkles, Trophy, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generateOfferDecision } from "@/lib/offer-decision";
-import type { UserPreferences, OfferDecisionResult } from "@/lib/offer-decision";
 import type { JobItem } from "@/lib/job-types";
+
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+
+const FEEL_OPTIONS = [
+  "Genuinely excited — felt like my kind of people",
+  "Solid but nothing special",
+  "Red flags but good offer",
+  "Mixed — liked some rounds, not others",
+];
+
+const REGRET_OPTIONS = [
+  "Taking less money for something I love",
+  "Chasing money over growth",
+  "Playing it safe when I should bet on myself",
+  "Optimising for title over actual work",
+  "Ignoring my gut feeling",
+];
 
 interface Props {
   offers: JobItem[];
   onClose: () => void;
 }
 
-interface StepOption {
-  label: string;
+interface Answer {
+  question: string;
   value: string;
 }
 
-const STEPS: { question: string; key: keyof UserPreferences; options?: StepOption[]; placeholder?: string; freeText?: boolean }[] = [
-  {
-    question: "What matters most to you right now?",
-    key: "priority",
-    options: [
-      { label: "Salary", value: "Salary" },
-      { label: "Growth", value: "Growth" },
-      { label: "Work-life balance", value: "Work-life balance" },
-      { label: "Brand / reputation", value: "Brand" },
-    ],
-  },
-  {
-    question: "What salary range are you targeting?",
-    key: "salaryRange",
-    freeText: true,
-    placeholder: "e.g. $150k - $200k",
-  },
-  {
-    question: "Preferred work mode?",
-    key: "workMode",
-    options: [
-      { label: "Remote", value: "Remote" },
-      { label: "Hybrid", value: "Hybrid" },
-      { label: "On-site", value: "On-site" },
-    ],
-  },
-  {
-    question: "Are you optimizing for?",
-    key: "optimizingFor",
-    options: [
-      { label: "Learning", value: "Learning" },
-      { label: "Stability", value: "Stability" },
-      { label: "Fast growth", value: "Fast growth" },
-    ],
-  },
-  {
-    question: "What's your risk preference?",
-    key: "riskPreference",
-    options: [
-      { label: "Startup", value: "Startup" },
-      { label: "Mid-size", value: "Mid-size" },
-      { label: "Enterprise", value: "Enterprise" },
-    ],
-  },
-  {
-    question: "Any strong preference between these companies?",
-    key: "companyPreference",
-    freeText: true,
-    placeholder: "e.g. I'm leaning towards Company A because...",
-  },
-];
-
 export default function OfferDecisionChat({ offers, onClose }: Props) {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Partial<UserPreferences>>({});
-  const [freeTextInput, setFreeTextInput] = useState("");
-  const [phase, setPhase] = useState<"stepper" | "generating" | "result">("stepper");
-  const [result, setResult] = useState<OfferDecisionResult | null>(null);
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [freeText, setFreeText] = useState("");
+  const [interviewFeels, setInterviewFeels] = useState<Record<string, string>>({});
+  const [phase, setPhase] = useState<"chat" | "thinking" | "result">("chat");
+  const [result, setResult] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTimeout(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-    }, 50);
-  }, [step, phase]);
+    }, 60);
+  }, [step, phase, answers, interviewFeels]);
 
-  const selectOption = (key: keyof UserPreferences, value: string) => {
-    const updated = { ...answers, [key]: value };
-    setAnswers(updated);
-    if (step < STEPS.length - 1) {
-      setTimeout(() => setStep((s) => s + 1), 300);
+  // Build dynamic questions based on offers
+  const questions = [
+    {
+      id: "ctc",
+      text: "What's your current CTC?",
+      type: "free" as const,
+      placeholder: "e.g. $140k base + $20k bonus",
+    },
+    {
+      id: "offer-0",
+      text: `Let's figure this out together. What's ${offers[0]?.company} actually offering you — base salary, and anything else on top?`,
+      type: "free" as const,
+      placeholder: "e.g. $185k base, $30k signing, 4yr vest",
+    },
+    ...(offers.length > 1
+      ? offers.slice(1).map((o, i) => ({
+          id: `offer-${i + 1}`,
+          text: `Got it. And ${o.company}?`,
+          type: "free" as const,
+          placeholder: "Base, bonus, equity, anything else",
+        }))
+      : []),
+    {
+      id: "feel",
+      text: "Okay. Now the part that data can't tell me — how did each interview actually feel?",
+      type: "feel" as const,
+      placeholder: "",
+    },
+    {
+      id: "regret",
+      text: "One more. Right now, what's the thing you'd most regret optimising for the wrong way?",
+      type: "chips" as const,
+      placeholder: "",
+    },
+  ];
+
+  const currentQ = questions[step];
+
+  const submitAnswer = (value: string) => {
+    if (!value.trim()) return;
+    const newAnswers = [...answers, { question: currentQ.text, value }];
+    setAnswers(newAnswers);
+    setFreeText("");
+    if (step < questions.length - 1) {
+      setTimeout(() => setStep((s) => s + 1), 250);
     } else {
-      submitAll(updated);
+      runDecision(newAnswers);
     }
   };
 
-  const submitFreeText = (key: keyof UserPreferences) => {
-    const value = freeTextInput.trim() || "No preference";
-    const updated = { ...answers, [key]: value };
-    setAnswers(updated);
-    setFreeTextInput("");
-    if (step < STEPS.length - 1) {
-      setTimeout(() => setStep((s) => s + 1), 300);
-    } else {
-      submitAll(updated);
-    }
+  const submitFeels = () => {
+    const feelSummary = offers
+      .map((o) => `${o.company}: ${interviewFeels[o.id] || "No answer"}`)
+      .join(". ");
+    submitAnswer(feelSummary);
   };
 
-  const submitAll = async (prefs: Partial<UserPreferences>) => {
-    setPhase("generating");
+  const runDecision = async (allAnswers: Answer[]) => {
+    setPhase("thinking");
     setError(null);
+
+    const offersBlock = offers
+      .map((j) => `- ${j.title} at ${j.company} | ${j.location} | ${j.type} | Salary: ${j.salary || "?"}\n  ${j.description}`)
+      .join("\n");
+
+    const answersBlock = allAnswers.map((a) => `Q: ${a.question}\nA: ${a.value}`).join("\n\n");
+
+    const prompt = `You are a sharp, honest career advisor helping someone choose between job offers. No fluff. No "both are great options". Give a real opinion.
+
+OFFERS:
+${offersBlock}
+
+CANDIDATE'S ANSWERS:
+${answersBlock}
+
+Based on everything above, give your recommendation. Be direct. Write like you're talking to a friend over coffee — not writing a report.
+
+Format your response as:
+1. A clear 1-sentence recommendation (which offer and why, in plain english)
+2. The honest tradeoff they're making (2-3 sentences max)
+3. One thing to negotiate before signing (1 sentence)
+
+Keep the total response under 150 words. No bullet points. No headers. No markdown. Just talk.`;
+
     try {
-      const fullPrefs: UserPreferences = {
-        priority: prefs.priority || "Not specified",
-        salaryRange: prefs.salaryRange || "Not specified",
-        workMode: prefs.workMode || "No preference",
-        optimizingFor: prefs.optimizingFor || "Not specified",
-        riskPreference: prefs.riskPreference || "No preference",
-        companyPreference: prefs.companyPreference || "None",
-      };
-      const decision = await generateOfferDecision(offers, fullPrefs);
-      setResult(decision);
+      const res = await fetch(GEMINI_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        }),
+      });
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      setResult(text.trim());
       setPhase("result");
     } catch {
-      setError("Couldn't generate recommendation. Please try again.");
-      setPhase("stepper");
+      setError("Couldn't get a recommendation right now. Try again.");
+      setPhase("chat");
     }
   };
-
-  const confidenceLabel = (c: number) =>
-    c >= 0.8 ? "High confidence" : c >= 0.6 ? "Moderate confidence" : "Low confidence";
-
-  const confidenceColor = (c: number) =>
-    c >= 0.8 ? "text-emerald-500" : c >= 0.6 ? "text-amber-500" : "text-orange-500";
 
   return (
     <motion.div
@@ -138,206 +159,157 @@ export default function OfferDecisionChat({ offers, onClose }: Props) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.97 }}
       transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-      className="fixed bottom-5 right-5 z-[200] w-[400px] h-[560px] bg-white dark:bg-[#1C1A19] rounded-2xl border border-black/10 dark:border-white/10 shadow-2xl flex flex-col overflow-hidden"
+      className="fixed bottom-5 right-5 z-[200] w-[380px] h-[520px] bg-white dark:bg-[#1C1A19] rounded-2xl border border-black/10 dark:border-white/10 shadow-2xl flex flex-col overflow-hidden"
       data-testid="offer-decision-chat"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 h-14 border-b border-black/5 dark:border-white/5 shrink-0">
+      <div className="flex items-center justify-between px-4 h-13 py-3 border-b border-black/5 dark:border-white/5 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center shrink-0">
-            <Trophy className="w-4 h-4 text-rose-500" />
+          <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 text-violet-500" />
           </div>
-          <div>
-            <div className="text-[13px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7]">Scout</div>
-            <div className="text-[11px] text-[#7A736C] dark:text-[#9E9893]">Offer Decision Assistant</div>
-          </div>
+          <span className="text-[13px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7]">Scout</span>
         </div>
-        <button type="button" onClick={onClose} className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-[#7A736C] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] transition-colors" data-testid="offer-decision-close">
+        <button type="button" onClick={onClose} className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-[#7A736C] hover:text-[#1A1A1A] dark:text-[#9E9893] dark:hover:text-[#F0EDE7] transition-colors" data-testid="offer-decision-close">
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Body */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* Intro */}
-        <div className="flex justify-start mb-4">
-          <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-black/[0.04] dark:bg-white/[0.06] px-3.5 py-2.5 text-[13px] text-[#1A1A1A] dark:text-[#F0EDE7] leading-relaxed">
-            <strong>Nice — you have {offers.length} offers!</strong> Let me help you compare them. I'll ask a few quick questions about what you value, then give you a side-by-side breakdown.
+        <ScoutBubble>
+          You've got {offers.length} offers on the table. Let's work through this.
+        </ScoutBubble>
+
+        {/* Rendered Q&A pairs */}
+        {answers.map((a, i) => (
+          <div key={i} className="space-y-2.5">
+            <ScoutBubble>{questions[i].text}</ScoutBubble>
+            <UserBubble>{a.value}</UserBubble>
           </div>
-        </div>
+        ))}
 
-        {/* Offer pills */}
-        <div className="flex flex-wrap gap-2 mb-5 px-1">
-          {offers.map((o) => (
-            <div key={o.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/30">
-              <Trophy className="w-3 h-3 text-rose-500" />
-              <span className="text-[11px] font-medium text-rose-700 dark:text-rose-300">{o.title} at {o.company}</span>
-            </div>
-          ))}
-        </div>
+        {/* Current question */}
+        {phase === "chat" && currentQ && step === answers.length && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+            <ScoutBubble>{currentQ.text}</ScoutBubble>
 
-        {/* Stepper Questions */}
-        {phase === "stepper" && STEPS.slice(0, step + 1).map((s, i) => {
-          const answered = answers[s.key];
-          return (
-            <motion.div key={s.key} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-5">
-              {/* Scout question */}
-              <div className="flex justify-start mb-2.5">
-                <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-black/[0.04] dark:bg-white/[0.06] px-3.5 py-2.5 text-[13px] text-[#1A1A1A] dark:text-[#F0EDE7]">
-                  {s.question}
-                </div>
+            {/* Free text input */}
+            {currentQ.type === "free" && (
+              <div className="flex gap-2 pl-1">
+                <input
+                  value={freeText}
+                  onChange={(e) => setFreeText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitAnswer(freeText); } }}
+                  placeholder={currentQ.placeholder}
+                  className="flex-1 h-9 px-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.03] border border-black/8 dark:border-white/8 text-[13px] text-[#1A1A1A] dark:text-[#F0EDE7] placeholder:text-[#7A736C]/40 outline-none focus:border-black/20 dark:focus:border-white/20"
+                  autoFocus
+                  data-testid={`decision-input-${currentQ.id}`}
+                />
+                <button type="button" onClick={() => submitAnswer(freeText)} disabled={!freeText.trim()} className="w-9 h-9 rounded-xl bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A] flex items-center justify-center disabled:opacity-20 hover:opacity-80 transition-opacity">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
+            )}
 
-              {/* Options or free text */}
-              {answered ? (
-                <div className="flex justify-end">
-                  <div className="max-w-[85%] rounded-2xl rounded-br-md bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A] px-3.5 py-2.5 text-[13px]">
-                    {answered}
-                  </div>
-                </div>
-              ) : i === step ? (
-                <div className="pl-1">
-                  {s.options ? (
-                    <div className="flex flex-wrap gap-2">
-                      {s.options.map((opt) => (
+            {/* Interview feel — one per offer */}
+            {currentQ.type === "feel" && (
+              <div className="space-y-3 pl-1">
+                {offers.map((o) => (
+                  <div key={o.id}>
+                    <span className="text-[12px] font-semibold text-[#7A736C] dark:text-[#9E9893] mb-1.5 block">{o.company}</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FEEL_OPTIONS.map((opt) => (
                         <button
-                          key={opt.value}
+                          key={opt}
                           type="button"
-                          onClick={() => selectOption(s.key, opt.value)}
-                          className="text-[12px] font-medium px-3.5 py-2 rounded-xl border border-black/8 dark:border-white/8 text-[#1A1A1A] dark:text-[#F0EDE7] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:border-black/15 dark:hover:border-white/15 transition-all"
-                          data-testid={`offer-opt-${s.key}-${opt.value.toLowerCase().replace(/\s+/g, "-")}`}
+                          onClick={() => setInterviewFeels((p) => ({ ...p, [o.id]: opt }))}
+                          className={cn(
+                            "text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-all",
+                            interviewFeels[o.id] === opt
+                              ? "border-[#1A1A1A] dark:border-[#F0EDE7] bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A]"
+                              : "border-black/8 dark:border-white/8 text-[#7A736C] dark:text-[#9E9893] hover:border-black/20 dark:hover:border-white/20"
+                          )}
                         >
-                          {opt.label}
+                          {opt}
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        value={freeTextInput}
-                        onChange={(e) => setFreeTextInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitFreeText(s.key); } }}
-                        placeholder={s.placeholder}
-                        className="flex-1 h-9 px-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.03] border border-black/8 dark:border-white/8 text-[13px] text-[#1A1A1A] dark:text-[#F0EDE7] placeholder:text-[#7A736C]/50 outline-none focus:border-black/20 dark:focus:border-white/20"
-                        data-testid={`offer-input-${s.key}`}
-                      />
-                      <button type="button" onClick={() => submitFreeText(s.key)} className="w-9 h-9 rounded-xl bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A] flex items-center justify-center hover:opacity-80 transition-opacity">
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </motion.div>
-          );
-        })}
+                  </div>
+                ))}
+                {Object.keys(interviewFeels).length === offers.length && (
+                  <button type="button" onClick={submitFeels} className="mt-1 text-[12px] font-semibold text-violet-500 hover:text-violet-600 transition-colors" data-testid="submit-feels">
+                    Continue →
+                  </button>
+                )}
+              </div>
+            )}
 
-        {/* Generating */}
-        {phase === "generating" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start mt-2">
-            <div className="bg-black/[0.04] dark:bg-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-violet-500 animate-pulse" />
-              <span className="text-[13px] text-[#7A736C] dark:text-[#9E9893]">Comparing your offers...</span>
-            </div>
+            {/* Regret chips */}
+            {currentQ.type === "chips" && (
+              <div className="flex flex-wrap gap-1.5 pl-1">
+                {REGRET_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => submitAnswer(opt)}
+                    className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg border border-black/8 dark:border-white/8 text-[#7A736C] dark:text-[#9E9893] hover:border-black/20 dark:hover:border-white/20 hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] transition-all"
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
+        )}
+
+        {/* Thinking */}
+        {phase === "thinking" && (
+          <div className="flex justify-start">
+            <div className="bg-black/[0.04] dark:bg-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-violet-500 animate-pulse" />
+              <span className="text-[13px] text-[#7A736C] dark:text-[#9E9893]">Thinking...</span>
+            </div>
+          </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="flex justify-start mt-2">
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13px] text-red-600 dark:text-red-400">
-              {error}
-            </div>
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-xl px-3.5 py-2.5 text-[13px] text-red-600 dark:text-red-400">
+            {error}
           </div>
         )}
 
         {/* Result */}
         {phase === "result" && result && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-2 space-y-4">
-            {/* Recommendation */}
-            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-[13px] font-bold text-emerald-700 dark:text-emerald-300">Recommendation</span>
-                <span className={cn("text-[11px] font-medium ml-auto", confidenceColor(result.confidence))}>
-                  {confidenceLabel(result.confidence)} ({Math.round(result.confidence * 100)}%)
-                </span>
-              </div>
-              <p className="text-[13px] text-emerald-800 dark:text-emerald-200 leading-relaxed">{result.summary}</p>
-            </div>
-
-            {/* Comparison Cards */}
-            {result.comparison.map((comp) => {
-              const isRecommended = comp.jobId === result.recommendedJobId;
-              return (
-                <div
-                  key={comp.jobId}
-                  className={cn(
-                    "rounded-xl border p-4",
-                    isRecommended
-                      ? "border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/10"
-                      : "border-black/8 dark:border-white/8 bg-black/[0.02] dark:bg-white/[0.02]"
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-[13px] font-bold text-[#1A1A1A] dark:text-[#F0EDE7]">{comp.company}</span>
-                    {isRecommended && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
-                        Best Fit
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="flex items-center gap-1 mb-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                        <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Pros</span>
-                      </div>
-                      {comp.pros.map((p, i) => (
-                        <p key={i} className="text-[12px] text-[#7A736C] dark:text-[#9E9893] leading-relaxed mb-0.5">- {p}</p>
-                      ))}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1 mb-1.5">
-                        <AlertTriangle className="w-3 h-3 text-orange-500" />
-                        <span className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">Cons</span>
-                      </div>
-                      {comp.cons.map((c, i) => (
-                        <p key={i} className="text-[12px] text-[#7A736C] dark:text-[#9E9893] leading-relaxed mb-0.5">- {c}</p>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Reasoning */}
-            <div className="flex justify-start">
-              <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-black/[0.04] dark:bg-white/[0.06] px-3.5 py-2.5 text-[13px] text-[#1A1A1A] dark:text-[#F0EDE7] leading-relaxed">
-                <strong>My reasoning:</strong> {result.reasoning}
-              </div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="bg-black/[0.04] dark:bg-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3.5 text-[13px] text-[#1A1A1A] dark:text-[#F0EDE7] leading-relaxed whitespace-pre-line">
+              {result}
             </div>
           </motion.div>
         )}
       </div>
-
-      {/* Progress */}
-      {phase === "stepper" && (
-        <div className="px-4 py-3 border-t border-black/5 dark:border-white/5 shrink-0">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium text-[#7A736C] dark:text-[#9E9893]">
-              Question {Math.min(step + 1, STEPS.length)} of {STEPS.length}
-            </span>
-          </div>
-          <div className="h-1 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden">
-            <motion.div
-              className="h-full rounded-full bg-rose-500"
-              animate={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
-        </div>
-      )}
     </motion.div>
+  );
+}
+
+function ScoutBubble({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[88%] rounded-2xl rounded-bl-md bg-black/[0.04] dark:bg-white/[0.06] px-3.5 py-2.5 text-[13px] text-[#1A1A1A] dark:text-[#F0EDE7] leading-relaxed">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function UserBubble({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[85%] rounded-2xl rounded-br-md bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A] px-3.5 py-2.5 text-[13px] leading-relaxed">
+        {children}
+      </div>
+    </div>
   );
 }
