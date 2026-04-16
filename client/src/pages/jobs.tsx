@@ -44,6 +44,10 @@ import JobsStepper from "@/components/jobs-stepper";
 import InterviewModal from "@/components/interview-modal";
 import ScoutChat from "@/components/scout-chat";
 import OfferDecisionChat from "@/components/offer-decision-chat";
+import CosmosView from "@/components/cosmos-view";
+import JobDetailPanel from "@/components/job-detail-panel";
+import type { StarData } from "@/lib/cosmos";
+import { computeCosmosDataFallback } from "@/lib/cosmos";
 
 const COLUMN_ICONS: Record<JobColumn, typeof Sparkles> = {
   "ai-picks": Sparkles,
@@ -69,7 +73,7 @@ const COLUMN_DOT_COLORS: Record<JobColumn, string> = {
   offer: "bg-rose-500",
 };
 
-function JobCard({ job, columnId, onStartInterview, onAskScout }: { job: JobItem; columnId?: string; onStartInterview?: (job: JobItem) => void; onAskScout?: (job: JobItem) => void }) {
+function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: { job: JobItem; columnId?: string; onStartInterview?: (job: JobItem) => void; onAskScout?: (job: JobItem) => void; onClickTitle?: (job: JobItem) => void }) {
   return (
     <div
       data-testid={`job-card-${job.id}`}
@@ -77,7 +81,10 @@ function JobCard({ job, columnId, onStartInterview, onAskScout }: { job: JobItem
     >
       <div className="flex items-start justify-between gap-2 mb-2.5">
         <div className="min-w-0 flex-1">
-          <h4 className="text-[14px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] leading-tight truncate">
+          <h4
+            className={cn("text-[14px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] leading-tight truncate", onClickTitle && "cursor-pointer hover:text-violet-600 dark:hover:text-violet-400 transition-colors")}
+            onClick={onClickTitle ? (e) => { e.stopPropagation(); onClickTitle(job); } : undefined}
+          >
             {job.title}
           </h4>
           <div className="flex items-center gap-1.5 mt-1">
@@ -193,6 +200,8 @@ export default function Jobs() {
   const [interviewJob, setInterviewJob] = useState<JobItem | null>(null);
   const [scoutJob, setScoutJob] = useState<JobItem | null>(null);
   const [showOfferDecision, setShowOfferDecision] = useState(false);
+  const [viewMode, setViewMode] = useState<"board" | "cosmos">("board");
+  const [detailPanelJob, setDetailPanelJob] = useState<StarData | null>(null);
 
   // Hydrate resume + check preferences
   useEffect(() => {
@@ -358,6 +367,36 @@ export default function Jobs() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Board / COSMOS Toggle */}
+            <div className="flex items-center h-8 rounded-full bg-black/[0.04] dark:bg-white/[0.04] p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode("board")}
+                className={cn(
+                  "h-7 px-3 rounded-full text-[12px] font-medium transition-all",
+                  viewMode === "board"
+                    ? "bg-white dark:bg-[#2A2520] text-[#1A1A1A] dark:text-[#F0EDE7] shadow-sm"
+                    : "text-[#7A736C] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7]"
+                )}
+                data-testid="toggle-board"
+              >
+                Board
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("cosmos")}
+                className={cn(
+                  "h-7 px-3 rounded-full text-[12px] font-medium transition-all flex items-center gap-1.5",
+                  viewMode === "cosmos"
+                    ? "bg-white dark:bg-[#2A2520] text-[#1A1A1A] dark:text-[#F0EDE7] shadow-sm"
+                    : "text-[#7A736C] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7]"
+                )}
+                data-testid="toggle-cosmos"
+              >
+                <Sparkles className="w-3 h-3" />
+                Cosmos
+              </button>
+            </div>
             <Button
               onClick={handleSearchAgain}
               variant="outline"
@@ -389,7 +428,8 @@ export default function Jobs() {
         )}
       </AnimatePresence>
 
-      {/* Kanban Board */}
+      {/* Board / COSMOS Views */}
+      {viewMode === "board" ? (
       <div className="max-w-[1400px] mx-auto px-6 lg:px-20 py-6">
         <Kanban
           value={columns}
@@ -445,7 +485,7 @@ export default function Jobs() {
 
                     {items.map((job) => (
                       <KanbanItem key={job.id} value={job.id}>
-                        <JobCard job={job} columnId={colId} onStartInterview={setInterviewJob} onAskScout={setScoutJob} />
+                        <JobCard job={job} columnId={colId} onStartInterview={setInterviewJob} onAskScout={setScoutJob} onClickTitle={(j) => setDetailPanelJob({ job: j, distance: 0.5, resonance: 0.5, weight: 0.5, companyType: "mid", insight: "", whyFits: j.description || "", angle: 0, x: 0, y: 0 })} />
                       </KanbanItem>
                     ))}
 
@@ -476,6 +516,12 @@ export default function Jobs() {
           </KanbanOverlay>
         </Kanban>
       </div>
+      ) : (
+        <CosmosView columns={columns} resume={resume} />
+      )}
+
+      {/* Job Detail Panel (Kanban title click) */}
+      <JobDetailPanel star={detailPanelJob} onClose={() => setDetailPanelJob(null)} />
 
       {/* Interview Modal */}
       <AnimatePresence>
