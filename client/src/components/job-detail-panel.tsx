@@ -34,7 +34,7 @@ export default function JobDetailPanel({ job, onClose }: Props) {
             {/* Header */}
             <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-black/5 dark:border-white/5">
               <div className="flex items-start gap-3 min-w-0 flex-1 mr-3">
-                {job.employerLogo ? (
+                {job.employerLogo && (
                   <img
                     src={job.employerLogo}
                     alt={`${job.company} logo`}
@@ -42,28 +42,47 @@ export default function JobDetailPanel({ job, onClose }: Props) {
                     data-testid="detail-employer-logo"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
-                ) : (
-                  <div className="w-10 h-10 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0">
-                    <Building2 className="w-5 h-5 text-[#7A736C]/50 dark:text-[#9E9893]/50" />
-                  </div>
                 )}
                 <div className="min-w-0 flex-1">
                   <h2 className="text-[18px] font-bold text-[#1A1A1A] dark:text-[#F0EDE7] leading-tight mb-1">
                     {job.title}
                   </h2>
-                  <span className="text-[13px] text-[#7A736C] dark:text-[#9E9893] font-medium">
+                  <div className="flex items-center gap-1.5 text-[13px] text-[#7A736C] dark:text-[#9E9893]">
+                    <Building2 className="w-3.5 h-3.5 shrink-0" />
                     {job.company}
-                  </span>
+                  </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-[#7A736C] hover:text-[#1A1A1A] dark:text-[#9E9893] dark:hover:text-[#F0EDE7] transition-colors shrink-0 mt-0.5"
-                data-testid="close-detail-panel"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {job.matchScore > 0 && (
+                  <div data-testid="detail-gauge-score" className="text-[#1A1A1A] dark:text-[#F0EDE7]">
+                    <Gauge
+                      value={job.matchScore}
+                      size={42}
+                      strokeWidth={4}
+                      showValue={true}
+                      showPercentage={false}
+                      gapPercent={3}
+                      primary={{
+                        0: "danger",
+                        50: "warning",
+                        70: "info",
+                        85: "success",
+                      }}
+                      secondary="rgba(120,120,120,0.1)"
+                      label="match"
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-[#7A736C] hover:text-[#1A1A1A] dark:text-[#9E9893] dark:hover:text-[#F0EDE7] transition-colors mt-0.5"
+                  data-testid="close-detail-panel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Body */}
@@ -84,28 +103,6 @@ export default function JobDetailPanel({ job, onClose }: Props) {
                   <span className="text-[12px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] bg-black/[0.04] dark:bg-white/[0.04] px-2.5 py-1 rounded-full">
                     {job.salary}
                   </span>
-                )}
-                {job.matchScore > 0 && (
-                  <div className="flex items-center gap-2 text-[#1A1A1A] dark:text-[#F0EDE7]" data-testid="detail-gauge-score">
-                    <Gauge
-                      value={job.matchScore}
-                      size={44}
-                      strokeWidth={4.5}
-                      showValue={true}
-                      showPercentage={true}
-                      gapPercent={3}
-                      primary={{
-                        0: "danger",
-                        50: "warning",
-                        70: "info",
-                        85: "success",
-                      }}
-                      secondary="rgba(120,120,120,0.1)"
-                      className={{
-                        textClassName: "text-[10px] font-bold",
-                      }}
-                    />
-                  </div>
                 )}
               </div>
 

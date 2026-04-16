@@ -23,8 +23,9 @@ Pull code from connected public Git repository, install dependencies, fix build 
 11. COSMOS Constellation view with gravity filters
 12. Individual embedding/heuristic Gemini ranking (no more 50% clustering)
 13. JSearch country code resolution from Nominatim
-14. **Company logos** on JobCard and JobDetailPanel (employer_logo from JSearch)
-15. **Gauge component** replacing text match scores on JobCard and JobDetailPanel
+14. Company logos on JobCard and JobDetailPanel (employer_logo from JSearch)
+15. Gauge component replacing text match scores
+16. **UI cleanup**: Compact gauge (24px ring + text) in cards, 42px gauge in detail panel header, removed fallback placeholder blocks, restored Building2 inline icon
 
 ## Key Files
 - `/app/client/src/pages/jobs.tsx` — Kanban board + inline JobCard component

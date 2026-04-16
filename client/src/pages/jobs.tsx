@@ -80,18 +80,14 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
     >
       <div className="flex items-start justify-between gap-2 mb-2.5">
         <div className="flex items-start gap-2.5 min-w-0 flex-1">
-          {job.employerLogo ? (
+          {job.employerLogo && (
             <img
               src={job.employerLogo}
               alt={`${job.company} logo`}
-              className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-white/10 border border-black/5 dark:border-white/10 shrink-0 mt-0.5"
+              className="w-7 h-7 rounded-md object-contain bg-white dark:bg-white/10 border border-black/5 dark:border-white/10 shrink-0 mt-0.5"
               data-testid={`employer-logo-${job.id}`}
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
-          ) : (
-            <div className="w-8 h-8 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
-              <Building2 className="w-4 h-4 text-[#7A736C]/50 dark:text-[#9E9893]/50" />
-            </div>
           )}
           <div className="min-w-0 flex-1">
             <h4
@@ -100,9 +96,12 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
             >
               {job.title}
             </h4>
-            <span className="text-[12px] text-[#7A736C] dark:text-[#9E9893] truncate font-medium block mt-0.5">
-              {job.company}
-            </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Building2 className="w-3 h-3 text-[#7A736C] dark:text-[#9E9893] shrink-0" />
+              <span className="text-[12px] text-[#7A736C] dark:text-[#9E9893] truncate font-medium">
+                {job.company}
+              </span>
+            </div>
           </div>
         </div>
         <KanbanItemHandle>
@@ -149,13 +148,12 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
             </a>
           )}
           {job.matchScore > 0 && (
-            <div data-testid={`gauge-score-${job.id}`} className="text-[#1A1A1A] dark:text-[#F0EDE7]">
+            <div data-testid={`gauge-score-${job.id}`} className="flex items-center gap-1">
               <Gauge
                 value={job.matchScore}
-                size={38}
-                strokeWidth={4}
-                showValue={true}
-                showPercentage={false}
+                size={24}
+                strokeWidth={3}
+                showValue={false}
                 gapPercent={3}
                 primary={{
                   0: "danger",
@@ -164,10 +162,14 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
                   85: "success",
                 }}
                 secondary="rgba(120,120,120,0.1)"
-                className={{
-                  textClassName: "text-[10px] font-bold",
-                }}
               />
+              <span className={cn(
+                "text-[11px] font-bold",
+                job.matchScore >= 85 ? "text-emerald-600 dark:text-emerald-400"
+                  : job.matchScore >= 70 ? "text-blue-600 dark:text-blue-400"
+                  : job.matchScore >= 50 ? "text-amber-600 dark:text-amber-400"
+                  : "text-red-500 dark:text-red-400"
+              )}>{job.matchScore}%</span>
             </div>
           )}
         </div>
