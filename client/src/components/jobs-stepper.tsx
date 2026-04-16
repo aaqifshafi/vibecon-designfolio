@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useSpring, useMotionValue } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,30 @@ interface Props {
   defaultLocation: string;
   onComplete: (prefs: JobPreferences) => void;
 }
+
+function AnimatedIntroHeading() {
+  const mv = useMotionValue(0);
+  const spring = useSpring(mv, { stiffness: 80, damping: 20 });
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    mv.set(1200);
+  }, []);
+
+  useEffect(() => {
+    const unsub = spring.on("change", (v) => setDisplay(Math.round(v)));
+    return unsub;
+  }, [spring]);
+
+  return (
+    <h1 className="text-[28px] font-bold tracking-tight mb-3 leading-tight max-w-[380px]">
+      We've found{" "}
+      <span className="tabular-nums">{display.toLocaleString()}+</span>{" "}
+      jobs that match your profile
+    </h1>
+  );
+}
+
 
 export default function JobsStepper({ defaultLocation, onComplete }: Props) {
   const [screen, setScreen] = useState(0);
@@ -179,9 +203,7 @@ export default function JobsStepper({ defaultLocation, onComplete }: Props) {
               </div>
 
               <div className="relative z-10 flex flex-col items-center">
-                <h1 className="text-[28px] font-bold tracking-tight mb-3 leading-tight max-w-[380px]">
-                  We've found 1,200+ jobs that match your profile
-                </h1>
+                <AnimatedIntroHeading />
                 <p className="text-[15px] text-[#7A736C] dark:text-[#B5AFA5] leading-relaxed mb-8 max-w-[420px]" style={{ fontWeight: 450 }}>
                   Now let's find the ones that are worth your time. Answer 3 questions and we'll narrow it down to your best matches.
                 </p>
