@@ -2361,7 +2361,17 @@ export default function Home() {
                                             ? "grayscale-0 opacity-100"
                                             : "grayscale opacity-50 group-hover:opacity-0 group-hover:scale-50 group-hover:-rotate-45"
                                         }`}
+                                        onError={(e) => {
+                                          const el = e.target as HTMLImageElement;
+                                          el.style.display = "none";
+                                          const fb = el.nextElementSibling as HTMLElement;
+                                          if (fb) fb.style.display = "flex";
+                                        }}
                                       />
+                                      <span
+                                        className="absolute inset-0 w-4 h-4 rounded bg-black/[0.08] dark:bg-white/[0.08] items-center justify-center text-[8px] font-bold text-[#7A736C] dark:text-[#9E9893] uppercase"
+                                        style={{ display: "none" }}
+                                      >{tool.name.slice(0, 2)}</span>
                                       {!isSelected && (
                                         <Plus className="absolute inset-0 w-4 h-4 opacity-0 group-hover:opacity-100 transition-all duration-200 scale-50 group-hover:scale-100 rotate-45 group-hover:rotate-0" />
                                       )}
@@ -2414,7 +2424,19 @@ export default function Home() {
                       src={tool.icon}
                       alt={tool.name}
                       className="w-full h-full object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                      onError={(e) => {
+                        const el = e.target as HTMLImageElement;
+                        el.style.display = "none";
+                        const fb = el.nextElementSibling as HTMLElement;
+                        if (fb) fb.style.display = "flex";
+                      }}
                     />
+                    <div
+                      className="w-full h-full rounded-md bg-black/[0.06] dark:bg-white/[0.08] items-center justify-center text-[11px] font-bold text-[#7A736C] dark:text-[#9E9893] uppercase"
+                      style={{ display: "none" }}
+                    >
+                      {tool.name.slice(0, 2)}
+                    </div>
                   </motion.div>
                 ))}
               </div>
