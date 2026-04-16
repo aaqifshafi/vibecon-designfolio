@@ -67,8 +67,7 @@ const SKILL_ICON_MAP: Record<string, string> = {
 };
 
 export function resolveToolIcon(name: string): string {
-  return SKILL_ICON_MAP[name.toLowerCase()] ||
-    `https://cdn.jsdelivr.net/gh/devicons/devicon/icons/${name.toLowerCase()}/${name.toLowerCase()}-original.svg`;
+  return SKILL_ICON_MAP[name.toLowerCase()] || "";
 }
 
 const PROMPT = `You are a resume parser. Extract the following fields from the resume text below and return ONLY a valid JSON object matching the ParsedResume schema exactly. No explanation, no markdown, no code fences.
