@@ -417,6 +417,16 @@ input[type="range"].speed-slider::-moz-range-thumb {
   opacity: 0;
 }
 
+/* Help-me-choose card: orb activates on parent card hover */
+.group\/choose:hover .choose-card-orb .color-orb::before {
+  animation-play-state: running;
+  opacity: 1;
+}
+.group\/choose:hover .choose-card-orb .color-orb::after {
+  opacity: 0;
+}
+
+
 @media (prefers-reduced-motion: reduce) {
   .color-orb::before { animation: none !important; opacity: 0 !important; }
 }
