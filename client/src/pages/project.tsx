@@ -13,10 +13,49 @@ import project1 from "@/assets/images/project1.png";
 import project2 from "@/assets/images/project2.png";
 import project3 from "@/assets/images/project3.png";
 import project4 from "@/assets/images/project4.png";
-import slateImage from "@assets/image_1772894732476.png";
+import slateImage from "@assets/image_1773592620611.png";
 import contentImage from "@assets/image_1772895554431.png";
+import { useResume } from "@/context/ResumeContext";
+import { getResumeData } from "@/lib/indexeddb";
 
-const projectsData: Record<string, any> = {
+export default function Project() {
+  const [match, params] = useRoute("/project/:id");
+  const [, navigate] = useLocation();
+  const { resume, setResume } = useResume();
+  const activeTemplate: string = "Minimal";
+  const [isProjectPasswordEnabled, setIsProjectPasswordEnabled] = useState(false);
+
+  const projectId = (params?.id as string)?.toLowerCase();
+
+  // Hydrate from IndexedDB if context is empty
+  useEffect(() => {
+    if (!resume) {
+      getResumeData().then((data) => {
+        if (data) setResume(data);
+      });
+    }
+  }, [resume, setResume]);
+
+  // Build projectsData from resume context or fall back to defaults
+  const dynamicProjectsData: Record<string, any> = {};
+  if (resume?.projects) {
+    resume.projects.forEach((p, i) => {
+      const key = (p.id || `project-${i + 1}`).toLowerCase();
+      dynamicProjectsData[key] = {
+        id: key,
+        title: p.title,
+        subtitle: p.subtitle,
+        description: p.description,
+        image: i === 0 ? slateImage : project2,
+        details: p.details,
+        introduction: p.introduction,
+        examples: [],
+      };
+    });
+  }
+
+  // Merge with static fallback
+  const fallbackData: Record<string, any> = {
   slate: {
     id: "slate",
     title: "Redesigning Quote Builder at Freshworks for 1,900+ Enterprise Users",
@@ -45,26 +84,11 @@ const projectsData: Record<string, any> = {
       platform: "Web app"
     },
     introduction: "Antimetal pushes the boundaries of digital design through bold, carefully-crafted animations. This project demonstrates how motion design can tell a story and create memorable user experiences. Every animation serves a purpose, contributing to the overall narrative.",
-    examples: [
-      {
-        title: "Motion Design",
-        description: "Custom animations bring the interface to life, creating a sense of fluidity and elegance. Each transition is orchestrated to feel natural while maintaining visual interest."
-      },
-      {
-        title: "Visual Storytelling",
-        description: "The design hierarchy uses motion to guide users through content progressively, making complex information feel approachable and engaging."
-      }
-    ]
+    examples: []
   }
-};
+  };
 
-export default function Project() {
-  const [match, params] = useRoute("/project/:id");
-  const [, navigate] = useLocation();
-  const activeTemplate: string = "Minimal";
-  const [isProjectPasswordEnabled, setIsProjectPasswordEnabled] = useState(false);
-
-  const projectId = (params?.id as string)?.toLowerCase();
+  const projectsData = { ...fallbackData, ...dynamicProjectsData };
 
   // Scroll to top on mount
   useEffect(() => {

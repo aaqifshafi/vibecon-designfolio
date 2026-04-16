@@ -94,9 +94,14 @@ import story1 from "@/assets/images/story-1.jpg";
 import story2 from "@/assets/images/story-2.jpg";
 import story3 from "@/assets/images/story-3.jpg";
 import story4 from "@/assets/images/story-4.jpg";
+import { useResume } from "@/context/ResumeContext";
+import { getResumeData } from "@/lib/indexeddb";
+import type { ParsedResume } from "@/lib/types";
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const { resume, setResume } = useResume();
+  const [dataLoaded, setDataLoaded] = useState(false);
   const atSignRef = useRef<AtSignIconHandle>(null);
   const downloadRef = useRef<DownloadIconHandle>(null);
   const dribbbleRef = useRef<DribbbleIconHandle>(null);
@@ -127,6 +132,35 @@ export default function Home() {
   const [isExperiencePanelOpen, setIsExperiencePanelOpen] = useState(false);
   const [isProjectPasswordEnabled, setIsProjectPasswordEnabled] =
     useState(false);
+
+  // Hydrate from IndexedDB on mount
+  useEffect(() => {
+    getResumeData().then((data) => {
+      if (data) {
+        setResume(data);
+        setDataLoaded(true);
+      } else {
+        // No data — redirect to landing
+        navigate("/", { replace: true });
+      }
+    }).catch(() => {
+      navigate("/", { replace: true });
+    });
+  }, []);
+
+  // Derive display values from resume context with fallbacks
+  const r = resume;
+  const displayFirstName = r?.firstName || "there";
+  const displayTitle = r?.title || "Product Designer";
+  const displayAbout = r?.about || "I'm a Design Engineer focused on crafting meaningful digital experiences where design meets code. With a strong front-end development and UX design background, I build scalable UI systems and contribute to user-centered products from concept to deployment.";
+  const displayEmail = r?.email || null;
+  const displayPhone = r?.phone || null;
+  const displayLinkedin = r?.linkedin || null;
+  const displayDribbble = r?.dribbble || null;
+  const displayTwitter = r?.twitter || null;
+  const displayGithub = r?.github || null;
+  const displayWebsite = r?.website || null;
+
   const [projects, setProjects] = useState([
     {
       id: "proj-1",
@@ -144,23 +178,22 @@ export default function Home() {
         "A dynamic, animation-focused landing page highlighting creative transitions.",
       image: project2,
     },
-    {
-      id: "proj-3",
-      slug: "slate-2",
-      title: "Slate",
-      description:
-        "A sleek and responsive landing page designed for modern startups to showcase their product.",
-      image: project3,
-    },
-    {
-      id: "proj-4",
-      slug: "antimetal-2",
-      title: "Antimetal",
-      description:
-        "A dynamic, animation-focused landing page highlighting creative transitions.",
-      image: project4,
-    },
   ]);
+
+  // Sync projects from resume
+  useEffect(() => {
+    if (r?.projects) {
+      setProjects(
+        r.projects.map((p, i) => ({
+          id: p.id || `proj-${i + 1}`,
+          slug: p.id || `project-${i + 1}`,
+          title: p.title,
+          description: p.description || p.subtitle,
+          image: i === 0 ? project1 : project2,
+        }))
+      );
+    }
+  }, [r?.projects]);
   const [isMyStoryPanelOpen, setIsMyStoryPanelOpen] = useState(false);
   const [storyImages, setStoryImages] = useState([
     story1,
@@ -193,6 +226,20 @@ export default function Home() {
     },
   ]);
 
+  // Sync recommendations from resume
+  useEffect(() => {
+    if (r?.recommendations && r.recommendations.length > 0) {
+      setRecommendations(
+        r.recommendations.map((rec) => ({
+          ...rec,
+          image: rec.image || recommender1,
+        }))
+      );
+    } else if (r && r.recommendations?.length === 0) {
+      setRecommendations([]);
+    }
+  }, [r?.recommendations]);
+
   const [activeTools, setActiveTools] = useState([
     { name: "Figma", icon: "/tools/image 4.png" },
     { name: "Notion", icon: "/tools/image 5.png" },
@@ -202,6 +249,13 @@ export default function Home() {
     { name: "Slack", icon: "/tools/image 9.png" },
     { name: "Arc", icon: "/tools/image 10.png" },
   ]);
+
+  // Sync tools from resume
+  useEffect(() => {
+    if (r?.tools && r.tools.length > 0) {
+      setActiveTools(r.tools);
+    }
+  }, [r?.tools]);
 
   const allTools = [
     { name: "Figma", icon: "/tools/image 4.png" },
@@ -686,29 +740,36 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [jump]);
 
-  const experiences = [
-    {
-      year: "2025",
-      company: "Apple",
-      role: "Staff Product Designer",
-      description:
-        "Leading design initiatives for core ecosystem products, focusing on seamless cross-device experiences and next-generation interface patterns.",
-    },
-    {
-      year: "2024",
-      company: "Apple",
-      role: "Lead Product Designer",
-      description:
-        "Spearheaded the redesign of iCloud services, improving user engagement by 40% through simplified sharing workflows and enhanced visual hierarchy.",
-    },
-    {
-      year: "2023",
-      company: "Apple",
-      role: "Product Designer II",
-      description:
-        "Contributed to the development of new accessibility features within iOS, ensuring inclusive design across all system-level components.",
-    },
-  ];
+  const experiences = r?.experience && r.experience.length > 0
+    ? r.experience.map((exp) => ({
+        year: exp.startDate || "",
+        company: exp.company,
+        role: exp.role,
+        description: exp.description,
+      }))
+    : [
+        {
+          year: "2025",
+          company: "Apple",
+          role: "Staff Product Designer",
+          description:
+            "Leading design initiatives for core ecosystem products, focusing on seamless cross-device experiences and next-generation interface patterns.",
+        },
+        {
+          year: "2024",
+          company: "Apple",
+          role: "Lead Product Designer",
+          description:
+            "Spearheaded the redesign of iCloud services, improving user engagement by 40% through simplified sharing workflows and enhanced visual hierarchy.",
+        },
+        {
+          year: "2023",
+          company: "Apple",
+          role: "Product Designer II",
+          description:
+            "Contributed to the development of new accessibility features within iOS, ensuring inclusive design across all system-level components.",
+        },
+      ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -844,13 +905,13 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 sm:gap-0">
                 <div>
                   <h1 className="text-[24px] font-semibold mb-0.5 tracking-tight text-[#1A1A1A] dark:text-[#F0EDE7]">
-                    Hey I'm Matt.
+                    Hey I'm {displayFirstName}.
                   </h1>
                   <p
                     className="text-[#7A736C] dark:text-[#B5AFA5] text-base"
                     style={{ fontWeight: 450 }}
                   >
-                    Product Designer
+                    {displayTitle}
                   </p>
                 </div>
                 <a
@@ -885,53 +946,70 @@ export default function Home() {
                   </Button>
                 </div>
               )}
-              <a
-                href="mailto:matt@gmail.com"
-                className="flex items-center gap-2 text-base text-[#666666] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] transition-colors group"
-                onMouseEnter={() => atSignRef.current?.startAnimation()}
-                onMouseLeave={() => atSignRef.current?.stopAnimation()}
-              >
-                <AtSignIcon
-                  ref={atSignRef}
-                  size={18}
-                  className="transition-colors"
-                />
-                matt@gmail.com
-              </a>
+              {displayEmail && (
+                <a
+                  href={`mailto:${displayEmail}`}
+                  className="flex items-center gap-2 text-base text-[#666666] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] transition-colors group"
+                  onMouseEnter={() => atSignRef.current?.startAnimation()}
+                  onMouseLeave={() => atSignRef.current?.stopAnimation()}
+                >
+                  <AtSignIcon
+                    ref={atSignRef}
+                    size={18}
+                    className="transition-colors"
+                  />
+                  {displayEmail}
+                </a>
+              )}
+              {!displayEmail && <div />}
               <div className="flex items-center gap-5 text-[#1A1A1A] dark:text-[#F0EDE7]">
-                <a
-                  href="#"
-                  className="hover:opacity-70 transition-opacity"
-                  onMouseEnter={() => dribbbleRef.current?.startAnimation()}
-                  onMouseLeave={() => dribbbleRef.current?.stopAnimation()}
-                >
-                  <DribbbleIcon
-                    ref={dribbbleRef}
-                    size={16}
-                    className="transition-colors"
-                  />
-                </a>
-                <a
-                  href="#"
-                  className="hover:opacity-70 transition-opacity"
-                  onMouseEnter={() => twitterRef.current?.startAnimation()}
-                  onMouseLeave={() => twitterRef.current?.stopAnimation()}
-                >
-                  <TwitterIcon
-                    ref={twitterRef}
-                    size={16}
-                    className="transition-colors"
-                  />
-                </a>
-                <a href="#" className="hover:opacity-70 transition-opacity">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-4 h-4"
-                    fill="currentColor"
+                {displayDribbble && (
+                  <a
+                    href={displayDribbble}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:opacity-70 transition-opacity"
+                    onMouseEnter={() => dribbbleRef.current?.startAnimation()}
+                    onMouseLeave={() => dribbbleRef.current?.stopAnimation()}
                   >
-                    <path d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42c1.87 0 3.38 2.88 3.38 6.42zM24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z" />
-                  </svg>
-                </a>
+                    <DribbbleIcon
+                      ref={dribbbleRef}
+                      size={16}
+                      className="transition-colors"
+                    />
+                  </a>
+                )}
+                {displayTwitter && (
+                  <a
+                    href={displayTwitter}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:opacity-70 transition-opacity"
+                    onMouseEnter={() => twitterRef.current?.startAnimation()}
+                    onMouseLeave={() => twitterRef.current?.stopAnimation()}
+                  >
+                    <TwitterIcon
+                      ref={twitterRef}
+                      size={16}
+                      className="transition-colors"
+                    />
+                  </a>
+                )}
+                {displayLinkedin && (
+                  <a href={displayLinkedin} target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+                    <Linkedin size={16} />
+                  </a>
+                )}
+                {displayGithub && (
+                  <a href={displayGithub} target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+                    <Github size={16} />
+                  </a>
+                )}
+                {displayWebsite && (
+                  <a href={displayWebsite} target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+                    <Globe size={16} />
+                  </a>
+                )}
               </div>
             </motion.div>
 
@@ -963,11 +1041,7 @@ export default function Home() {
                 className="text-[#7A736C] dark:text-[#B5AFA5] leading-[1.7] text-base"
                 style={{ fontWeight: 450 }}
               >
-                I'm a Design Engineer focused on crafting meaningful digital
-                experiences where design meets code. With a strong front-end
-                development and UX design background, I build scalable UI
-                systems and contribute to user-centered products from concept to
-                deployment.
+                {displayAbout}
               </p>
             </motion.div>
 
@@ -2158,19 +2232,9 @@ export default function Home() {
               </div>
 
               <div className="space-y-6 text-[#7A736C] dark:text-[#B5AFA5] text-base leading-[1.7]">
-                <p>
-                  I'm David Simmons, a passionate digital designer and no-code
-                  developer who bridges creativity with technology. Currently
-                  exploring new ways to craft meaningful digital experiences,
-                  I'm driven by curiosity and a love for clean, purposeful
-                  design.
-                </p>
-                <p>
-                  I thrive on transforming ideas into reality — whether it's
-                  shaping intuitive interfaces, crafting distinctive brand
-                  identities, designing immersive visuals, or building websites
-                  that feel effortless to use.
-                </p>
+                {displayAbout.split('\n').filter(Boolean).map((paragraph, idx) => (
+                  <p key={idx}>{paragraph}</p>
+                ))}
               </div>
             </motion.div>
 
@@ -2555,6 +2619,7 @@ export default function Home() {
                 Contact
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                {displayEmail && (
                 <motion.div
                   whileHover="hover"
                   initial="rest"
@@ -2563,6 +2628,7 @@ export default function Home() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => { navigator.clipboard.writeText(displayEmail); }}
                     className="w-full flex items-center justify-between px-4 py-4 bg-white dark:bg-[#2A2520] rounded-xl border border-black/5 dark:border-white/10 shadow-sm hover:bg-gray-50 dark:hover:bg-[#35302A] transition-colors group h-auto"
                   >
                     <span className="text-[#1A1A1A] dark:text-[#F0EDE7] font-medium text-sm">
@@ -2586,6 +2652,8 @@ export default function Home() {
                     </motion.div>
                   </Button>
                 </motion.div>
+                )}
+                {displayPhone && (
                 <motion.div
                   whileHover="hover"
                   initial="rest"
@@ -2594,6 +2662,7 @@ export default function Home() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => { navigator.clipboard.writeText(displayPhone); }}
                     className="w-full flex items-center justify-between px-4 py-4 bg-white dark:bg-[#2A2520] rounded-xl border border-black/5 dark:border-white/10 shadow-sm hover:bg-gray-50 dark:hover:bg-[#35302A] transition-colors group h-auto"
                   >
                     <span className="text-[#1A1A1A] dark:text-[#F0EDE7] font-medium text-sm">
@@ -2617,6 +2686,7 @@ export default function Home() {
                     </motion.div>
                   </Button>
                 </motion.div>
+                )}
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                 <motion.div

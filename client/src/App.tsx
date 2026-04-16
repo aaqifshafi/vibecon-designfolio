@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Project from "@/pages/project";
 import { ThemeProvider } from "next-themes";
+import { ResumeProvider } from "@/context/ResumeContext";
 
 import Landing from "@/pages/landing";
 import { FloatingNav } from "@/components/floating-nav";
@@ -32,12 +33,14 @@ function Router() {
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <ResumeProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ResumeProvider>
     </ThemeProvider>
   );
 }

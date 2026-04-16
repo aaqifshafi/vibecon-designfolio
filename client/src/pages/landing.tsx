@@ -10,6 +10,10 @@ import mockupImg from "@assets/image_1773592620611.png";
 import { useTheme } from "next-themes";
 import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
+import { extractTextFromPDF } from "@/lib/pdf";
+import { parseResumeWithGemini } from "@/lib/gemini";
+import { hasResumeData, setResumeData } from "@/lib/indexeddb";
+import { useResume } from "@/context/ResumeContext";
 
 function BlurHoverText({ defaultText, hoverText, scrollActive }: { defaultText: string, hoverText: string, scrollActive?: boolean }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -330,12 +334,14 @@ export default function Landing() {
   const [cutoutPos, setCutoutPos] = useState({ x: 0, y: 300 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadZoneRef = useRef<HTMLDivElement>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showReuploadWarning, setShowReuploadWarning] = useState(false);
+  const { setResume } = useResume();
 
   const aiStatuses = [
     "Reading your resume...",
-    "Extracting skills & experience...",
+    "Extracting your story with Gemini...",
     "Building your portfolio...",
-    "Scanning matched jobs...",
   ];
 
   useEffect(() => {
@@ -343,15 +349,72 @@ export default function Landing() {
     setAiStatusIndex(0);
     const interval = setInterval(() => {
       setAiStatusIndex((i) => (i + 1) % aiStatuses.length);
-    }, 2200);
+    }, 3000);
     return () => clearInterval(interval);
   }, [isProcessing]);
 
-  useEffect(() => {
-    if (!isProcessing) return;
-    const timer = setTimeout(() => navigate("/builder"), 6200);
-    return () => clearTimeout(timer);
-  }, [isProcessing, navigate]);
+  // Real processing pipeline: PDF → Gemini → IndexedDB → redirect
+  const processResume = useCallback(async (file: File) => {
+    setUploadError(null);
+    setIsProcessing(true);
+    setResumeFile(file);
+    setShowUploadModal(false);
+
+    try {
+      // Step 1: Extract text from PDF
+      setAiStatusIndex(0);
+      const text = await extractTextFromPDF(file);
+      if (!text || text.trim().length < 20) {
+        throw new Error("PDF_EMPTY");
+      }
+
+      // Step 2: Call Gemini
+      setAiStatusIndex(1);
+      const parsed = await parseResumeWithGemini(text);
+
+      // Step 3: Store in IndexedDB
+      setAiStatusIndex(2);
+      await setResumeData(parsed);
+      setResume(parsed);
+
+      // Step 4: Navigate to builder
+      navigate("/builder");
+    } catch (err: any) {
+      setIsProcessing(false);
+      setResumeFile(null);
+      if (err.message === "PDF_EMPTY") {
+        setUploadError("We couldn't read this PDF. Try a text-based PDF rather than a scanned image.");
+      } else if (err.message?.includes("malformed JSON")) {
+        setUploadError("Something went wrong reading your resume. Please try again.");
+      } else {
+        setUploadError("Something went wrong reading your resume. Please try again.");
+      }
+    }
+  }, [navigate, setResume]);
+
+  // Handle file selection with IndexedDB check
+  const handleFileSelected = useCallback(async (file: File) => {
+    if (file.type !== "application/pdf") {
+      setUploadError("Please upload a PDF file only");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("File is too large. Max 5MB.");
+      return;
+    }
+    processResume(file);
+  }, [processResume]);
+
+  // Check IndexedDB before opening file picker
+  const handleUploadClick = useCallback(async () => {
+    setUploadError(null);
+    const exists = await hasResumeData();
+    if (exists) {
+      setShowReuploadWarning(true);
+    } else {
+      fileInputRef.current?.click();
+    }
+  }, []);
 
   const speedLabels = ["Taking it easy", "Comfortable", "Normal", "Skimming", "Quick scan"];
   const speedDurations = [52, 38, 28, 18, 11];
@@ -805,7 +868,8 @@ export default function Landing() {
                 data-testid="input-resume-upload"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) { setResumeFile(file); setIsProcessing(true); }
+                  if (file) handleFileSelected(file);
+                  e.target.value = "";
                 }}
               />
               <AnimatePresence mode="wait">
@@ -845,14 +909,14 @@ export default function Landing() {
                     exit={{ opacity: 0, scale: 0.97 }}
                     transition={{ duration: 0.25 }}
                     data-testid="dropzone-resume"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleUploadClick}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={(e) => {
                       e.preventDefault();
                       setIsDragging(false);
                       const file = e.dataTransfer.files?.[0];
-                      if (file && file.type === "application/pdf") { setResumeFile(file); setIsProcessing(true); }
+                      if (file) handleFileSelected(file);
                     }}
                     className={cn(
                       "group/dropzone cursor-pointer inline-flex items-center gap-3.5 rounded-xl border border-dashed px-5 py-3 transition-all duration-200",
@@ -877,6 +941,20 @@ export default function Landing() {
                 )}
               </AnimatePresence>
             </motion.div>
+            {/* Upload error */}
+            <AnimatePresence>
+              {uploadError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="mt-3 text-center text-[13px] font-medium text-red-500 dark:text-red-400"
+                  data-testid="upload-error"
+                >
+                  {uploadError}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </section>
 
           {/* Browser Mockup Section */}
@@ -1223,7 +1301,7 @@ export default function Landing() {
                               e.preventDefault();
                               setIsDragging(false);
                               const file = e.dataTransfer.files?.[0];
-                              if (file && file.type === 'application/pdf') { setResumeFile(file); setIsProcessing(true); }
+                              if (file) handleFileSelected(file);
                             }}
                           >
                             <Folder isDragging={false} />
@@ -1418,6 +1496,62 @@ export default function Landing() {
                 )}
               </AnimatePresence>
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Re-upload Warning Modal */}
+      <AnimatePresence>
+        {showReuploadWarning && (
+          <motion.div
+            key="reupload-warning-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+            style={{ backgroundColor: isDark ? 'rgba(10,9,8,0.75)' : 'rgba(29,27,26,0.45)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+            onClick={() => setShowReuploadWarning(false)}
+            data-testid="reupload-warning-modal"
+          >
+            <motion.div
+              key="reupload-warning-card"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-[400px] rounded-2xl border border-[#E2E1DA] dark:border-white/10 bg-[#FDFCF8] dark:bg-[#1C1A19] shadow-2xl p-7"
+            >
+              <h3 className="text-[18px] font-bold text-[#1D1B1A] dark:text-foreground tracking-tight mb-2">
+                You already have a portfolio
+              </h3>
+              <p className="text-[14px] text-[#1D1B1A]/55 dark:text-foreground/55 leading-relaxed mb-6">
+                Uploading a new resume will replace your existing portfolio data. This can't be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowReuploadWarning(false);
+                    navigate("/builder");
+                  }}
+                  data-testid="reupload-go-back"
+                  className="flex-1 rounded-xl border border-[#1D1B1A]/10 dark:border-white/10 px-4 py-2.5 text-[14px] font-medium text-[#1D1B1A] dark:text-foreground hover:bg-[#1D1B1A]/5 dark:hover:bg-white/5 transition-colors"
+                >
+                  Go Back to Builder
+                </button>
+                <button
+                  onClick={() => {
+                    setShowReuploadWarning(false);
+                    fileInputRef.current?.click();
+                  }}
+                  data-testid="reupload-continue"
+                  className="flex-1 rounded-xl bg-[#1D1B1A] dark:bg-white text-[#FDFCF8] dark:text-[#1D1B1A] px-4 py-2.5 text-[14px] font-medium transition-colors hover:bg-[#FF553E] dark:hover:bg-[#FF553E] dark:hover:text-white"
+                >
+                  Continue Anyway
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
