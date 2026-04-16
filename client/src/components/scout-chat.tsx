@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, SendHorizontal, Sparkles, Briefcase, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ColorOrb } from "@/components/ui/color-orb";
 import { getResumeData } from "@/lib/indexeddb";
 import { buildScoutSystemPrompt, sendScoutMessage } from "@/lib/scout-chat";
 import type { ChatMessage } from "@/lib/scout-chat";
@@ -124,8 +125,8 @@ export default function ScoutChat({ job, onClose }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-14 border-b border-black/5 dark:border-white/5 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 text-violet-500" />
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0">
+            <ColorOrb dimension="28px" spinDuration={8} />
           </div>
           <div className="min-w-0">
             <div className="text-[13px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7] truncate">
@@ -164,8 +165,8 @@ export default function ScoutChat({ job, onClose }: Props) {
         {/* Empty state / First view */}
         {!noResume && isEmpty && (
           <div className="flex flex-col items-center text-center pt-6 pb-2">
-            <div className="w-12 h-12 rounded-2xl bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center mb-4">
-              <Sparkles className="w-6 h-6 text-violet-500" />
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4">
+              <ColorOrb dimension="48px" spinDuration={10} />
             </div>
             <h3 className="text-[16px] font-bold text-[#1A1A1A] dark:text-[#F0EDE7] mb-1.5">
               Hey, I'm Scout.
