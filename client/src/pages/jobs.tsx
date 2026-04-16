@@ -186,19 +186,6 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
 
       {/* Row 4: Action bar */}
       <div className="flex items-center gap-2 pt-3 border-t border-black/5 dark:border-white/5">
-        {job.url && (
-          <a
-            href={job.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="w-8 h-8 rounded-lg border border-black/8 dark:border-white/8 flex items-center justify-center text-[#7A736C] dark:text-[#9E9893] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] hover:border-black/15 dark:hover:border-white/15 transition-all shrink-0"
-            data-testid={`apply-link-${job.id}`}
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        )}
-
         {columnId === "interview" && onStartInterview && (
           <button
             type="button"
@@ -207,7 +194,7 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
             className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#1A1A1A] dark:bg-[#F0EDE7] text-white dark:text-[#1A1A1A] text-[11px] font-semibold hover:opacity-90 transition-opacity"
           >
             <Video className="w-3.5 h-3.5" />
-            Interview
+            Mock Interview
           </button>
         )}
 
