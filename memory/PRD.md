@@ -24,20 +24,15 @@ Pull code from connected public Git repository, install dependencies, fix build 
 12. Individual embedding/heuristic Gemini ranking (no more 50% clustering)
 13. JSearch country code resolution from Nominatim
 14. Company logos on JobCard and JobDetailPanel (employer_logo from JSearch)
-15. Gauge component replacing text match scores
-16. **UI cleanup**: Compact gauge (24px ring + text) in cards, 42px gauge in detail panel header, removed fallback placeholder blocks, restored Building2 inline icon
+15. Gauge component (full 21st.dev/designali-in/gauge-1 registry version) replacing text match scores
+16. UI cleanup: Compact 24px gauge ring + text in cards, 42px labeled gauge in detail panel header, logos only when available, no fallback placeholder blocks
 
 ## Key Files
 - `/app/client/src/pages/jobs.tsx` — Kanban board + inline JobCard component
 - `/app/client/src/components/job-detail-panel.tsx` — Slide-out detail panel
-- `/app/client/src/components/ui/gauge-1.tsx` — Animated SVG gauge component
+- `/app/client/src/components/ui/gauge-1.tsx` — Full 21st.dev gauge component (multiRing, thresholds, tickMarks, glow)
 - `/app/client/src/lib/jsearch.ts` — JSearch API integration (maps employer_logo)
 - `/app/client/src/lib/job-types.ts` — JobItem type (includes employerLogo field)
-- `/app/client/src/lib/gemini-jobs.ts` — Gemini ranking logic
-- `/app/client/src/components/cosmos-view.tsx` — COSMOS constellation view
-- `/app/client/src/components/scout-chat.tsx` — Ask Scout AI chat
-- `/app/client/src/components/offer-decision-chat.tsx` — Offer comparison assistant
-- `/app/client/src/components/interview-modal.tsx` — Anam.ai interview modal
 
 ## Backlog
 - No pending tasks from PRDs. All requested features are implemented.

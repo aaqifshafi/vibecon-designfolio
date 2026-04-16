@@ -58,7 +58,7 @@
     "embla-carousel-react": "^8.6.0",
     "express": "^5.0.1",
     "express-session": "^1.18.1",
-    "framer-motion": "^12.36.0",
+    "framer-motion": "^12.38.0",
     "input-otp": "^1.4.2",
     "lottie-react": "^2.4.1",
     "lucide-animated": "^1.0.0",
