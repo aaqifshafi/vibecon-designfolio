@@ -1718,6 +1718,7 @@ export default function Home() {
             ></motion.div>
 
             {/* Recommendations Section */}
+            {recommendations.length > 0 && (
             <motion.div
               variants={itemVariants}
               className="px-5 md:px-8 py-8 relative group/section"
@@ -2051,11 +2052,14 @@ export default function Home() {
                 </div>
               )}
             </motion.div>
+            )}
 
+            {recommendations.length > 0 && (
             <motion.div
               variants={itemVariants}
               className="custom-dashed-t"
             ></motion.div>
+            )}
 
             {/* My Story Section */}
             <motion.div
@@ -2689,6 +2693,7 @@ export default function Home() {
                 )}
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                {displayLinkedin && (
                 <motion.div
                   whileHover="hover"
                   initial="rest"
@@ -2697,6 +2702,7 @@ export default function Home() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => window.open(displayLinkedin, '_blank')}
                     className="w-full flex items-center justify-between px-4 py-4 bg-white dark:bg-[#2A2520] rounded-xl border border-black/5 dark:border-white/10 shadow-sm hover:bg-gray-50 dark:hover:bg-[#35302A] transition-colors group h-auto"
                   >
                     <span className="text-[#1A1A1A] dark:text-[#F0EDE7] font-medium text-sm">
@@ -2720,6 +2726,8 @@ export default function Home() {
                     </motion.div>
                   </Button>
                 </motion.div>
+                )}
+                {displayDribbble && (
                 <motion.div
                   whileHover="hover"
                   initial="rest"
@@ -2728,6 +2736,7 @@ export default function Home() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => window.open(displayDribbble, '_blank')}
                     className="w-full flex items-center justify-between px-4 py-4 bg-white dark:bg-[#2A2520] rounded-xl border border-black/5 dark:border-white/10 shadow-sm hover:bg-gray-50 dark:hover:bg-[#35302A] transition-colors group h-auto"
                   >
                     <span className="text-[#1A1A1A] dark:text-[#F0EDE7] font-medium text-sm">
@@ -2751,6 +2760,8 @@ export default function Home() {
                     </motion.div>
                   </Button>
                 </motion.div>
+                )}
+                {displayTwitter && (
                 <motion.div
                   whileHover="hover"
                   initial="rest"
@@ -2759,6 +2770,7 @@ export default function Home() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => window.open(displayTwitter, '_blank')}
                     className="w-full flex items-center justify-between px-4 py-4 bg-white dark:bg-[#2A2520] rounded-xl border border-black/5 dark:border-white/10 shadow-sm hover:bg-gray-50 dark:hover:bg-[#35302A] transition-colors group h-auto"
                   >
                     <span className="text-[#1A1A1A] dark:text-[#F0EDE7] font-medium text-sm">
@@ -2782,6 +2794,8 @@ export default function Home() {
                     </motion.div>
                   </Button>
                 </motion.div>
+                )}
+                {(displayGithub || displayWebsite) && (
                 <motion.div
                   whileHover="hover"
                   initial="rest"
@@ -2790,10 +2804,11 @@ export default function Home() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => window.open(displayGithub || displayWebsite || '#', '_blank')}
                     className="w-full flex items-center justify-between px-4 py-4 bg-white dark:bg-[#2A2520] rounded-xl border border-black/5 dark:border-white/10 shadow-sm hover:bg-gray-50 dark:hover:bg-[#35302A] transition-colors group h-auto"
                   >
                     <span className="text-[#1A1A1A] dark:text-[#F0EDE7] font-medium text-sm">
-                      Medium
+                      {displayGithub ? "GitHub" : "Website"}
                     </span>
                     <motion.div
                       variants={{
@@ -2806,13 +2821,21 @@ export default function Home() {
                         damping: 10,
                       }}
                     >
-                      <Globe
-                        size={14}
-                        className="text-[#7A736C] dark:text-[#9E9893] group-hover:text-[#1A1A1A] dark:group-hover:text-[#F0EDE7]"
-                      />
+                      {displayGithub ? (
+                        <Github
+                          size={14}
+                          className="text-[#7A736C] dark:text-[#9E9893] group-hover:text-[#1A1A1A] dark:group-hover:text-[#F0EDE7]"
+                        />
+                      ) : (
+                        <Globe
+                          size={14}
+                          className="text-[#7A736C] dark:text-[#9E9893] group-hover:text-[#1A1A1A] dark:group-hover:text-[#F0EDE7]"
+                        />
+                      )}
                     </motion.div>
                   </Button>
                 </motion.div>
+                )}
               </div>
               <motion.div whileHover="hover" initial="rest" className="w-full">
                 <Button
