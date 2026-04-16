@@ -48,6 +48,7 @@ import InterviewModal from "@/components/interview-modal";
 import ScoutChat from "@/components/scout-chat";
 import OfferDecisionChat from "@/components/offer-decision-chat";
 import CosmosView from "@/components/cosmos-view";
+import AIThinkingBlock from "@/components/ai-thinking-block";
 import JobDetailPanel from "@/components/job-detail-panel";
 
 const COLUMN_ICONS: Record<JobColumn, typeof Sparkles> = {
@@ -352,25 +353,14 @@ export default function Jobs() {
   // Fetching
   if (phase === "fetching") {
     return (
-      <div className="min-h-screen bg-[#F0EDE7] dark:bg-[#1A1A1A] flex items-center justify-center font-['Inter']">
+      <div className="min-h-screen bg-[#F0EDE7] dark:bg-[#1A1A1A] flex items-center justify-center font-['Inter'] px-4">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center gap-4"
+          className="flex flex-col items-center gap-5"
           data-testid="fetching-state"
         >
-          <Sparkles className="w-8 h-8 text-violet-500 animate-pulse" />
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={fetchStatus}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className="text-[16px] font-semibold text-[#1A1A1A] dark:text-[#F0EDE7]"
-            >
-              {fetchStatus}
-            </motion.span>
-          </AnimatePresence>
+          <AIThinkingBlock status={fetchStatus} />
           <span className="text-[13px] text-[#7A736C] dark:text-[#9E9893]">This takes a few seconds...</span>
         </motion.div>
       </div>

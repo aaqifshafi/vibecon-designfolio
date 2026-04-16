@@ -154,6 +154,28 @@ body {
   }
 }
 
+.scout-shimmer {
+  background: linear-gradient(110deg, #1A1A1A 35%, #7A736C 50%, #1A1A1A 75%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: scout-shimmer-move 3s linear infinite;
+}
+
+.dark .scout-shimmer {
+  background: linear-gradient(110deg, #F0EDE7 35%, #9E9893 50%, #F0EDE7 75%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes scout-shimmer-move {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 
 /* Speed slider thumb styling */
 input[type="range"].speed-slider::-webkit-slider-thumb {
