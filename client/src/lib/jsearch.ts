@@ -99,6 +99,42 @@ async function fetchPage(params: Record<string, string>, page: number): Promise<
   return data?.data || [];
 }
 
+// Map common country names to ISO 2-letter codes for JSearch
+const COUNTRY_CODES: Record<string, string> = {
+  "united states": "us", "united states of america": "us", "usa": "us",
+  "united kingdom": "gb", "uk": "gb", "great britain": "gb", "england": "gb",
+  "canada": "ca", "australia": "au", "india": "in", "germany": "de",
+  "france": "fr", "netherlands": "nl", "sweden": "se", "spain": "es",
+  "italy": "it", "japan": "jp", "singapore": "sg", "brazil": "br",
+  "ireland": "ie", "new zealand": "nz", "switzerland": "ch", "austria": "at",
+  "belgium": "be", "denmark": "dk", "finland": "fi", "norway": "no",
+  "portugal": "pt", "poland": "pl", "mexico": "mx", "south korea": "kr",
+  "israel": "il", "czech republic": "cz", "romania": "ro", "argentina": "ar",
+  "chile": "cl", "colombia": "co", "philippines": "ph", "malaysia": "my",
+  "indonesia": "id", "thailand": "th", "vietnam": "vn", "taiwan": "tw",
+  "hong kong": "hk", "united arab emirates": "ae", "uae": "ae",
+  "south africa": "za", "nigeria": "ng", "kenya": "ke", "egypt": "eg",
+  "saudi arabia": "sa", "pakistan": "pk", "bangladesh": "bd", "sri lanka": "lk",
+  "türkiye": "tr", "turkey": "tr", "ukraine": "ua", "greece": "gr",
+  "hungary": "hu", "croatia": "hr", "slovakia": "sk", "luxembourg": "lu",
+  "estonia": "ee", "latvia": "lv", "lithuania": "lt", "iceland": "is",
+  "china": "cn", "russia": "ru", "peru": "pe", "costa rica": "cr",
+};
+
+function resolveCountryCode(country: string): string {
+  if (!country) return "";
+  const lower = country.toLowerCase().trim();
+  // Direct match
+  if (COUNTRY_CODES[lower]) return COUNTRY_CODES[lower];
+  // Already a 2-letter code
+  if (/^[a-z]{2}$/.test(lower)) return lower;
+  // Partial match
+  for (const [name, code] of Object.entries(COUNTRY_CODES)) {
+    if (lower.includes(name) || name.includes(lower)) return code;
+  }
+  return "";
+}
+
 export async function fetchJSearchJobs(prefs: JobPreferences): Promise<JobItem[]> {
   const params: Record<string, string> = {
     query: `${prefs.role} in ${prefs.location || "United States"}`,
@@ -106,11 +142,20 @@ export async function fetchJSearchJobs(prefs: JobPreferences): Promise<JobItem[]
   };
 
   if (prefs.levelApiValue) params.job_requirements = prefs.levelApiValue;
+
+  // Resolve country code from Nominatim data
+  const countryCode = resolveCountryCode(prefs.country);
+
   if (prefs.locationType === "remote") {
     params.remote_jobs_only = "true";
     params.query = prefs.role;
   } else if (prefs.location) {
     params.query = `${prefs.role} in ${prefs.location}`;
+    if (countryCode) params.country = countryCode;
+  }
+
+  if (!params.country && countryCode) {
+    params.country = countryCode;
   }
 
   // Fetch pages 1, 2, 3 in parallel
