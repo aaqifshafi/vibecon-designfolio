@@ -1,35 +1,32 @@
 # Vibecon Designfolio - PRD
 
 ## Architecture
-- **Stack**: Vite 7.3 + React 19 + TypeScript + Tailwind CSS v4 + Wouter + @dnd-kit
-- **Data**: IndexedDB (`portfolioBuilder` v2, stores: `resumeData`, `jobPreferences`, `jobsData`)
-- **APIs**: Gemini 2.5 Flash (resume parsing + job ranking), JSearch/RapidAPI (real job listings), Nominatim (location autocomplete)
-- **Keys**: `.env.local` (gitignored) — `VITE_GEMINI_API_KEY`, `VITE_RAPIDAPI_KEY`
+- **Stack**: Vite 7.3 + React 19 + TypeScript + Tailwind CSS v4 + Wouter + @dnd-kit + @anam-ai/js-sdk
+- **Data**: IndexedDB (`portfolioBuilder` v2)
+- **APIs**: Gemini 2.5 Flash, JSearch/RapidAPI, Nominatim, Anam.ai (avatar)
+- **Keys in `.env.local`**: VITE_GEMINI_API_KEY, VITE_RAPIDAPI_KEY, VITE_ANAM_API_KEY
 
 ## Implemented Features
 
-### 1. Resume-to-Portfolio Builder (/)→(/builder)
-- PDF upload → PDF.js extraction → Gemini parsing → IndexedDB → /builder
-- Dynamic hero, about, experience, projects (2), tools, recommendations, contact/social links
-- Re-upload warning modal, error states, fallbacks
+### 1. Resume-to-Portfolio Builder (/ → /builder)
+- PDF upload → PDF.js → Gemini parsing → IndexedDB → dynamic builder
 
-### 2. Jobs Onboarding Stepper (/jobs gate)
-- Screen 0: Intro ("1,200+ jobs found")
-- Screen 1: Experience level (4 cards → API param mapping)
-- Screen 2: Location (3 options + Nominatim autocomplete, pre-fills from resume)
-- Screen 3: Target role (free text + 6 quick-select chips)
-- On submit: prefs → IndexedDB, JSearch 3 pages in parallel, Gemini ranking
+### 2. Jobs Stepper (/jobs gate)
+- 3-step stepper: experience level, location (Nominatim), target role
+- JSearch 3 pages parallel → Gemini ranking → Kanban
 
 ### 3. Jobs Kanban Board (/jobs)
 - 5 columns: AI Picks, Shortlisted, Applied, Interview, Offer
-- Real JSearch job cards with title, company, location, salary, match score, apply link
-- Drag-and-drop between columns, persisted to IndexedDB
-- "Search again" clears prefs and restarts stepper
-- Floating nav (Builder + Jobs)
+- Drag-and-drop, IndexedDB persistence, "Search again"
+
+### 4. AI Mock Interview (Anam Avatar)
+- "Take Mock Interview" button on Interview column cards only
+- Full-screen modal: resume→portfolioContext→systemPrompt→Anam session→avatar stream
+- Kevin avatar conducts structured interview based on JD + portfolio
+- Error states: permission denied, no resume, session failure
+- End Interview destroys session, returns to Kanban
 
 ## Files
-- `lib/`: types.ts, indexeddb.ts, pdf.ts, gemini.ts, gemini-jobs.ts, job-types.ts, jobs-db.ts, job-preferences-db.ts, jsearch.ts
-- `context/`: ResumeContext.tsx
-- `components/`: jobs-stepper.tsx
-- `pages/`: landing.tsx, home.tsx, project.tsx, jobs.tsx
-- `client/.env.local` (gitignored), `client/.env.example`
+- `lib/`: types, indexeddb, pdf, gemini, gemini-jobs, job-types, jobs-db, job-preferences-db, jsearch, anam-interview
+- `components/`: jobs-stepper, interview-modal
+- `pages/`: landing, home, project, jobs
