@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { Gauge } from "@/components/ui/gauge-1";
+import { ColorOrb } from "@/components/ui/color-orb";
 import { useResume } from "@/context/ResumeContext";
 import { getResumeData } from "@/lib/indexeddb";
 import { getJobsData, setJobsData } from "@/lib/jobs-db";
@@ -215,9 +216,9 @@ function JobCard({ job, columnId, onStartInterview, onAskScout, onClickTitle }: 
             type="button"
             onClick={(e) => { e.stopPropagation(); onAskScout(job); }}
             data-testid={`ask-scout-${job.id}`}
-            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-black/8 dark:border-white/8 text-[#7A736C] dark:text-[#9E9893] text-[11px] font-medium hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] hover:border-black/15 dark:hover:border-white/15 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all"
+            className="orb-activates-on-hover flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-black/8 dark:border-white/8 text-[#7A736C] dark:text-[#9E9893] text-[11px] font-medium hover:text-[#1A1A1A] dark:hover:text-[#F0EDE7] hover:border-black/15 dark:hover:border-white/15 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <ColorOrb dimension="14px" spinDuration={8} />
             Ask Scout
           </button>
         )}
